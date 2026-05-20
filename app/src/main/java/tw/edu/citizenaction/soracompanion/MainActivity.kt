@@ -56,6 +56,10 @@ class MainActivity : Activity() {
     private var managedStudentCount = 5
     private var offlinePendingCount = 1
     private var selectedAccountName = "林家豪"
+    private var mentorReplyCount = 0
+    private var learningEventCount = 0
+    private var repairedMistakeCount = 0
+    private var customTaskCount = 0
     private var lastAnswerMessage = "還沒有開始今日任務。"
 
     private val student = PrototypeRepository.student
@@ -100,10 +104,14 @@ class MainActivity : Activity() {
         managedStudentCount = saved.managedStudentCount
         offlinePendingCount = saved.offlinePendingCount
         selectedAccountName = saved.selectedAccountName
+        mentorReplyCount = saved.mentorReplyCount
+        learningEventCount = saved.learningEventCount
+        repairedMistakeCount = saved.repairedMistakeCount
+        customTaskCount = saved.customTaskCount
     }
 
     private fun persistState() {
-        stateStore.save(AppState(mood, minutes, confidence, completedTasks, currentQuestionIndex, actionDoneCount, managedStudentCount, offlinePendingCount, selectedAccountName))
+        stateStore.save(AppState(mood, minutes, confidence, completedTasks, currentQuestionIndex, actionDoneCount, managedStudentCount, offlinePendingCount, selectedAccountName, mentorReplyCount, learningEventCount, repairedMistakeCount, customTaskCount))
     }
 
     private fun renderHome() {
@@ -135,6 +143,11 @@ class MainActivity : Activity() {
         root.addView(ui.secondaryButton("查看完整使用旅程") { renderJourney() })
         section("任務佇列")
         studyTasks.take(2).forEach { root.addView(taskCard(it)) }
+        if (customTaskCount > 0) {
+            repeat(customTaskCount) { index ->
+                root.addView(taskCard(StudyTask("自訂修復任務 ${index + 1}", 3, "低", "由老師端新增，先做一題一概念修復。", "老師指派")))
+            }
+        }
         root.addView(ui.secondaryButton("查看所有任務安排") { renderTaskQueue() })
         section("目前進度")
         modules.take(3).forEach { root.addView(moduleCard(it)) }
@@ -164,6 +177,7 @@ class MainActivity : Activity() {
         root.addView(ui.secondaryButton("查看產品設計原則") { renderDesignPrinciples() })
         section("本週訊號")
         weeklySignals.forEach { root.addView(signalCard(it)) }
+        root.addView(card("操作紀錄摘要", "已處理待辦：${actionDoneCount} 件\n志工回覆：${mentorReplyCount} 則\n新增任務：${customTaskCount} 個", ColorToken.Card))
         root.addView(ui.secondaryButton("查看週報與提案摘要") { renderWeeklyReport() })
     }
 
@@ -240,6 +254,18 @@ class MainActivity : Activity() {
         root.addView(card("排程邏輯", "可用時間：${minutes} 分鐘｜模式：${mood.planName}\n先排低壓修復，再排挑戰題。", ColorToken.PrimarySoft))
         root.addView(ui.secondaryButton("查看今日學習契約") { renderLearningContract() })
         studyTasks.forEach { root.addView(taskCard(it)) }
+        if (customTaskCount > 0) {
+            section("老師新增任務")
+            repeat(customTaskCount) { index ->
+                root.addView(taskCard(StudyTask("志工接力任務 ${index + 1}", 3, "低", "由老師端依斷點新增，完成後會回寫週報。", "老師指派")))
+            }
+        }
+        root.addView(ui.secondaryButton("新增一個低壓自訂任務") {
+            customTaskCount += 1
+            offlinePendingCount += 1
+            persistState()
+            renderTaskQueue()
+        })
         root.addView(ui.primaryButton("開始第一個任務") { renderLesson() })
         bottomNav()
     }
@@ -302,6 +328,9 @@ class MainActivity : Activity() {
         if (option == q.answer) {
             completedTasks += 1
             confidence = (confidence + 4).coerceAtMost(100)
+            learningEventCount += 1
+            if (wrongAttempts > 0) repairedMistakeCount += 1
+            offlinePendingCount += 1
             wrongAttempts = 0
             lastAnswerMessage = "答對了：${q.explanation}"
             currentQuestionIndex = (currentQuestionIndex + 1) % questions.size
@@ -310,6 +339,8 @@ class MainActivity : Activity() {
         } else {
             wrongAttempts += 1
             confidence = (confidence - 1).coerceAtLeast(0)
+            learningEventCount += 1
+            offlinePendingCount += 1
             lastAnswerMessage = "你選了 $option。${q.explanation}"
             persistState()
             if (wrongAttempts >= 3) {
@@ -345,6 +376,8 @@ class MainActivity : Activity() {
     private fun handleReflection(prompt: ReflectionPrompt) {
         confidence = (confidence + prompt.confidenceDelta).coerceIn(0, 100)
         lastAnswerMessage = prompt.platformResponse
+        learningEventCount += 1
+        offlinePendingCount += 1
         persistState()
         renderReflectionSaved(prompt)
     }
@@ -355,6 +388,7 @@ class MainActivity : Activity() {
         root.addView(card("學生選擇", prompt.studentChoice, ColorToken.PrimarySoft))
         root.addView(card("平台回應", prompt.platformResponse, ColorToken.SuccessSoft))
         root.addView(card("目前信心值", "$confidence%｜下次會從同一個斷點繼續，而不是直接加難度。", ColorToken.Card))
+        root.addView(card("已寫入學習紀錄", "學習事件：${learningEventCount} 筆\n修復紀錄：${repairedMistakeCount} 筆\n待同步：${offlinePendingCount} 筆", ColorToken.PrimarySoft))
         root.addView(ui.primaryButton("回學習地圖") { renderMap() })
         bottomNav()
     }
@@ -414,6 +448,14 @@ class MainActivity : Activity() {
         root.addView(card("學生摘要", "${student.name}｜${student.location}｜${student.goal}\n目前心情：${mood.label}\n今日任務時間：${minutes} 分鐘", ColorToken.PrimarySoft))
         root.addView(card("斷點摘要", "${breakpoints.first().title}\n證據：${breakpoints.first().evidence}\nAI 已做：${breakpoints.first().aiAction}", ColorToken.WarningSoft))
         root.addView(card("建議陪伴語", "你願意回來做修復任務已經很好。今天我們只看一個規則，先不追完整進度。", ColorToken.SuccessSoft))
+        root.addView(card("志工回覆狀態", "目前已有 ${mentorReplyCount} 則回覆。回覆會回寫老師端待辦與學生週報。", ColorToken.Card))
+        root.addView(ui.secondaryButton("新增一則志工回覆") {
+            mentorReplyCount += 1
+            actionDoneCount = (actionDoneCount + 1).coerceAtMost(teacherActions.size)
+            offlinePendingCount += 1
+            persistState()
+            renderHandoff()
+        })
         root.addView(ui.primaryButton("查看陪伴腳本") { renderMentorScript() })
         bottomNav()
     }
@@ -423,6 +465,10 @@ class MainActivity : Activity() {
         shell("個人化學習地圖", "固定節奏比一次衝刺更重要")
         root.addView(card("本週總覽", "完成微任務：$completedTasks\n信心值：$confidence%\n目前重點：${modules[1].title}", ColorToken.PrimarySoft))
         modules.forEach { root.addView(moduleCard(it)) }
+        section("學習紀錄時間線")
+        root.addView(timelineCard("今日答題紀錄", "已累積 ${learningEventCount} 筆學習事件，包含答題、反思、求助與修復。", ColorToken.Primary))
+        root.addView(timelineCard("錯題修復", "已完成 ${repairedMistakeCount} 筆錯題修復，會進入老師端週報。", ColorToken.Success))
+        root.addView(timelineCard("待同步紀錄", "目前有 ${offlinePendingCount} 筆本機紀錄等待同步。", if (offlinePendingCount > 0) ColorToken.Warning else ColorToken.Success))
         section("錯題修復紀錄")
         mistakeRecords.forEach { root.addView(mistakeCard(it)) }
         root.addView(ui.secondaryButton("查看離線任務包") { renderOfflinePacks() })
@@ -459,6 +505,7 @@ class MainActivity : Activity() {
         ))
         root.addView(card("同步策略", "學生離線時仍可完成短任務；網路恢復後，微任務、反思、志工接力摘要會補傳。正式版可接 Room/Firebase，目前先用本機狀態模擬。", ColorToken.PrimarySoft))
         syncRecords.forEach { root.addView(syncCard(it)) }
+        root.addView(card("本機待同步明細", "學習事件：${learningEventCount} 筆\n志工回覆：${mentorReplyCount} 則\n老師新增任務：${customTaskCount} 個", ColorToken.Card))
         root.addView(ui.primaryButton("全部標記為已同步") {
             offlinePendingCount = 0
             persistState()
@@ -470,7 +517,7 @@ class MainActivity : Activity() {
     private fun renderRoster() {
         screen = Screen.Roster
         shell("學生列表", "讓老師先看見誰需要接力")
-        roster.forEach { row -> root.addView(studentRowCard(row)) }
+        currentRoster().forEach { row -> root.addView(studentRowCard(row)) }
         root.addView(ui.primaryButton("查看 ${student.name} 的斷點") { renderBreakpoints() })
         root.addView(ui.secondaryButton("查看接力優先序") { renderHandoffBoard() })
         bottomNav()
@@ -530,14 +577,23 @@ class MainActivity : Activity() {
             Metric("已處理待辦", "${actionDoneCount} 件", ColorToken.Success)
         ))
         root.addView(card("目前限制", "這裡還沒有正式資料庫，但已把老師端需要的管理概念做成可操作原型：新增展示學生、切換追蹤狀態、查看接力工作。", ColorToken.PrimarySoft))
-        roster.forEach { root.addView(studentRowCard(it)) }
+        currentRoster().forEach { root.addView(studentRowCard(it)) }
         root.addView(ui.primaryButton("新增 1 位展示學生") {
             managedStudentCount += 1
+            offlinePendingCount += 1
             persistState()
             renderStudentManager()
         })
         root.addView(ui.secondaryButton("查看待辦處理佇列") { renderActionQueue() })
         bottomNav()
+    }
+
+    private fun currentRoster(): List<StudentRow> {
+        if (managedStudentCount <= roster.size) return roster.take(managedStudentCount)
+        val extra = (roster.size + 1..managedStudentCount).map { index ->
+            StudentRow("新增學生$index", if (index % 2 == 0) "中" else "低", "待建立學習檔案", "剛加入班級，尚未完成第一次檢測")
+        }
+        return roster + extra
     }
 
     private fun renderAiLab() {
@@ -554,11 +610,39 @@ class MainActivity : Activity() {
         val q = questions[currentQuestionIndex]
         shell("AI 生成結果模擬", "依目前題型與錯題狀態產生個人化回饋")
         root.addView(card("輸入資料", "${q.prompt}\n題型：${q.type}\n目前錯誤次數：$wrongAttempts", ColorToken.PrimarySoft))
-        root.addView(card("診斷", "學生可能卡在「${q.concept}」。先不要加題，先給一個可重試的小提示。", ColorToken.WarningSoft))
-        root.addView(card("給學生的話", q.repairHint, ColorToken.SuccessSoft))
-        root.addView(card("給志工的摘要", "學生在「${q.concept}」出現不穩，建議只用同題型陪練 2 題，避免一次混入新規則。", ColorToken.Card))
+        root.addView(card("診斷", aiDiagnosis(q), ColorToken.WarningSoft))
+        root.addView(card("給學生的話", aiStudentFeedback(q), ColorToken.SuccessSoft))
+        root.addView(card("給志工的摘要", aiHandoffSummary(q), ColorToken.Card))
+        root.addView(ui.secondaryButton("把這次 AI 摘要存入待辦") {
+            actionDoneCount = actionDoneCount.coerceAtMost(teacherActions.size)
+            offlinePendingCount += 1
+            learningEventCount += 1
+            persistState()
+            renderGeneratedAiFeedback()
+        })
         root.addView(ui.primaryButton("回今日任務") { renderLesson() })
         bottomNav()
+    }
+
+    private fun aiDiagnosis(question: Question): String {
+        return when (question.type) {
+            "閱讀題" -> "學生可能不是完全看不懂，而是長句切分壓力高。先找主詞，再找動詞。"
+            "聽力題" -> "學生需要先抓關鍵字，不適合一次要求完整翻譯。"
+            "字彙題" -> "學生需要把單字和情境連起來，而不是只背中文意思。"
+            else -> "學生可能卡在「${question.concept}」。先不要加題，先給一個可重試的小提示。"
+        }
+    }
+
+    private fun aiStudentFeedback(question: Question): String {
+        return if (mood == Mood.Low) {
+            "今天狀態比較低，先記一個提示就好：${question.repairHint}"
+        } else {
+            question.repairHint
+        }
+    }
+
+    private fun aiHandoffSummary(question: Question): String {
+        return "學生在「${question.concept}」出現不穩，題型為${question.type}。建議真人只用同題型陪練 2 題，避免一次混入新規則。"
     }
 
     private fun renderMentorScript() {
@@ -720,20 +804,42 @@ class MainActivity : Activity() {
         return ui.margins(box, 0, 8, 0, 8)
     }
 
+    private fun timelineCard(title: String, detail: String, color: String): View {
+        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        top.addView(ui.statusPill("紀錄", color))
+        top.addView(ui.label(title, 16, ColorToken.Ink, true).apply {
+            setPadding(ui.dp(10), 0, 0, 0)
+        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        box.addView(top)
+        box.addView(ui.body(detail, "#334155").apply { setPadding(0, ui.dp(8), 0, 0) })
+        return ui.margins(box, 0, 7, 0, 7)
+    }
+
     private fun teacherActionCard(action: TeacherAction): View {
+        val index = teacherActions.indexOf(action)
+        val completed = index in 0 until actionDoneCount
         val color = when (action.status) {
             "今日待處理" -> ColorToken.Danger
             "本週追蹤" -> ColorToken.Warning
             else -> ColorToken.Primary
         }
-        val box = ui.container(if (action.status == "今日待處理") ColorToken.WarningSoft else ColorToken.Card, ColorToken.Border)
+        val box = ui.container(if (completed) ColorToken.SuccessSoft else if (action.status == "今日待處理") ColorToken.WarningSoft else ColorToken.Card, ColorToken.Border)
         val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         top.addView(ui.label(action.title, 17, ColorToken.Ink, true), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        top.addView(ui.statusPill(action.status, color))
+        top.addView(ui.statusPill(if (completed) "已完成" else action.status, if (completed) ColorToken.Success else color))
         box.addView(top)
         box.addView(ui.body("負責：${action.owner}｜期限：${action.due}", ColorToken.Muted).apply { setPadding(0, ui.dp(7), 0, 0) })
         box.addView(ui.body("證據：${action.evidence}", "#334155"))
         box.addView(ui.body("下一步：${action.nextStep}", ColorToken.Success))
+        if (!completed) {
+            box.setOnClickListener {
+                actionDoneCount = (index + 1).coerceAtLeast(actionDoneCount + 1).coerceAtMost(teacherActions.size)
+                offlinePendingCount += 1
+                persistState()
+                renderActionQueue()
+            }
+        }
         return ui.margins(box, 0, 8, 0, 8)
     }
 

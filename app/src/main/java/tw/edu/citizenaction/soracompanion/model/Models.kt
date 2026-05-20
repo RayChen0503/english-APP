@@ -204,5 +204,9 @@ data class AppState(
     val actionDoneCount: Int = 0,
     val managedStudentCount: Int = 5,
     val offlinePendingCount: Int = 1,
-    val selectedAccountName: String = "林家豪"
+    val selectedAccountName: String = "林家豪",
+    val mentorReplyCount: Int = 0,
+    val learningEventCount: Int = 0,
+    val repairedMistakeCount: Int = 0,
+    val customTaskCount: Int = 0
 )

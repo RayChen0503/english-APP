@@ -19,7 +19,11 @@ class PrototypeStateStore(context: Context) {
             actionDoneCount = prefs.getInt("actionDoneCount", 0),
             managedStudentCount = prefs.getInt("managedStudentCount", 5),
             offlinePendingCount = prefs.getInt("offlinePendingCount", 1),
-            selectedAccountName = prefs.getString("selectedAccountName", "林家豪") ?: "林家豪"
+            selectedAccountName = prefs.getString("selectedAccountName", "林家豪") ?: "林家豪",
+            mentorReplyCount = prefs.getInt("mentorReplyCount", 0),
+            learningEventCount = prefs.getInt("learningEventCount", 0),
+            repairedMistakeCount = prefs.getInt("repairedMistakeCount", 0),
+            customTaskCount = prefs.getInt("customTaskCount", 0)
         )
     }
 
@@ -34,6 +38,10 @@ class PrototypeStateStore(context: Context) {
             .putInt("managedStudentCount", state.managedStudentCount)
             .putInt("offlinePendingCount", state.offlinePendingCount)
             .putString("selectedAccountName", state.selectedAccountName)
+            .putInt("mentorReplyCount", state.mentorReplyCount)
+            .putInt("learningEventCount", state.learningEventCount)
+            .putInt("repairedMistakeCount", state.repairedMistakeCount)
+            .putInt("customTaskCount", state.customTaskCount)
             .apply()
     }
 }
