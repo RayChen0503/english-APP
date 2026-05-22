@@ -259,12 +259,12 @@ class MainActivity : Activity() {
 
     private fun renderTaskQueue() {
         screen = Screen.Lesson
-        shell("今日任務佇列", "依心情、時間與斷點自動排序")
+        shell("今天先做這個", "把英文練習縮到現在做得到的一小步")
         root.addView(currentTaskFocus())
-        root.addView(card("排程邏輯", "可用時間：${minutes} 分鐘｜模式：${mood.planName}\n先排低壓修復，再排挑戰題。", ColorToken.PrimarySoft))
+        root.addView(taskRouteCard())
         root.addView(ui.secondaryButton("查看今日學習契約") { renderLearningContract() })
-        section("後續任務")
-        studyTasks.forEach { root.addView(taskCard(it)) }
+        section("做完第一步後")
+        studyTasks.drop(1).forEach { root.addView(taskCard(it)) }
         if (customTaskCount > 0) {
             section("老師新增任務")
             repeat(customTaskCount) { index ->
@@ -317,6 +317,7 @@ class MainActivity : Activity() {
         root.addView(lessonFocusCard())
         root.addView(questionCard(q))
         root.addView(lessonSupportCard())
+        root.addView(lessonExitCard())
         root.addView(ui.secondaryButton("我想直接求助") { renderHelpRequest() })
         root.addView(ui.secondaryButton("改做復原任務") { renderRecoveryMode() })
         bottomNav()
@@ -951,26 +952,42 @@ class MainActivity : Activity() {
     private fun currentTaskFocus(): View {
         val task = studyTasks.first()
         val box = ui.sectionBand(ColorToken.PrimarySoft)
-        box.addView(ui.statusPill("Checkpoint ${currentQuestionIndex + 1}", ColorToken.Accent))
-        box.addView(ui.label(task.title, 22, ColorToken.Ink, true).apply {
+        box.addView(ui.statusPill("現在先做", ColorToken.Accent))
+        box.addView(ui.label(task.title, 23, ColorToken.Ink, true).apply {
             setPadding(0, ui.dp(12), 0, ui.dp(4))
         })
-        box.addView(ui.body("${task.minutes} 分鐘｜${task.difficulty}難度｜${task.status}", ColorToken.Muted))
-        box.addView(ui.body(task.reason, "#334155").apply {
+        box.addView(metricRow(
+            Metric("時間", "${task.minutes} 分", ColorToken.Primary),
+            Metric("概念", "1 個", ColorToken.Success),
+            Metric("完成", "答一題", ColorToken.Accent)
+        ))
+        box.addView(ui.body("你不用先看完整任務表。English+ 先把最適合現在的第一步放在這裡。", "#334155"))
+        box.addView(ui.body("排序原因：${task.reason}", ColorToken.Primary).apply {
             setPadding(0, ui.dp(8), 0, 0)
         })
-        box.addView(ui.primaryButton("開始這個任務") { renderLesson() })
+        box.addView(ui.primaryButton("開始第一題") { renderLesson() })
         return ui.margins(box, 0, 8, 0, 16)
+    }
+
+    private fun taskRouteCard(): View {
+        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        box.addView(ui.statusPill("今日安排", ColorToken.Primary))
+        box.addView(ui.label("先修復，再往前", 18, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body("目前可用 ${minutes} 分鐘，平台依「${mood.planName}」先排低壓修復；等第一題站穩，再決定要不要加挑戰。", "#334155"))
+        box.addView(flowStrip("第一題", "即時回饋", "完成或支持"))
+        return ui.margins(box, 0, 8, 0, 12)
     }
 
     private fun lessonFocusCard(): View {
         val box = ui.container(ColorToken.PrimarySoft, ColorToken.Border)
-        box.addView(ui.statusPill("一題一概念", ColorToken.Primary))
-        box.addView(ui.label("今天先把一個斷點修回來", 19, ColorToken.Ink, true).apply {
+        box.addView(ui.statusPill("任務目標", ColorToken.Primary))
+        box.addView(ui.label("先完成一題，再決定下一步", 19, ColorToken.Ink, true).apply {
             setPadding(0, ui.dp(12), 0, ui.dp(4))
         })
-        box.addView(ui.body("答錯不會扣分。連續卡住時，系統會標記斷點並改派更小的修復任務。", "#334155"))
-        box.addView(ui.body("這一關目標：看懂題目、選一次、收到可以修復的回饋。", ColorToken.Success).apply {
+        box.addView(ui.body("這裡只修一個概念。你先看懂題目、選一次，English+ 會立刻給可修復的回饋。", "#334155"))
+        box.addView(ui.body("答錯會改變支持路徑，不會把你推進更難的題目。", ColorToken.Success).apply {
             setPadding(0, ui.dp(8), 0, 0)
         })
         return ui.margins(box, 0, 8, 0, 12)
@@ -987,6 +1004,23 @@ class MainActivity : Activity() {
         ))
         box.addView(ui.body(lastAnswerMessage, "#334155"))
         return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun lessonExitCard(): View {
+        val fill = if (wrongAttempts > 0) ColorToken.WarningSoft else ColorToken.SuccessSoft
+        val color = if (wrongAttempts > 0) ColorToken.Warning else ColorToken.Success
+        val message = if (wrongAttempts > 0) {
+            "有點卡住時，可以先讓 AI 拆小，或直接改成復原任務。"
+        } else {
+            "現在可以直接作答；需要時，支持出口一直都在。"
+        }
+        val box = ui.container(fill, ColorToken.Border)
+        box.addView(ui.statusPill("支持出口", color))
+        box.addView(ui.label("不用硬撐同一條路", 17, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(10), 0, ui.dp(4))
+        })
+        box.addView(ui.body(message, "#334155"))
+        return ui.margins(box, 0, 8, 0, 8)
     }
 
     private fun successSummaryCard(question: Question): View {
@@ -1136,17 +1170,25 @@ class MainActivity : Activity() {
     }
 
     private fun questionCard(question: Question): View {
-        val box = ui.container(ColorToken.Card, ColorToken.Border)
-        box.addView(ui.label("題目 ${currentQuestionIndex + 1} / ${questions.size}", 14, ColorToken.Muted, true))
-        box.addView(ui.statusPill(question.type, ColorToken.Accent))
+        val box = ui.sectionBand(ColorToken.Card)
+        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        top.addView(ui.statusPill("題目 ${currentQuestionIndex + 1}", ColorToken.Accent))
+        top.addView(ui.label(question.type, 14, ColorToken.Muted, true).apply {
+            setPadding(ui.dp(10), ui.dp(3), 0, 0)
+        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        top.addView(ui.statusPill("一個概念", ColorToken.Success))
+        box.addView(top)
         box.addView(ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             max = questions.size
             progress = currentQuestionIndex + 1
             setPadding(0, ui.dp(12), 0, ui.dp(8))
         })
-        box.addView(ui.label(question.prompt, 26, ColorToken.Ink, true).apply {
-            gravity = Gravity.CENTER
-            setPadding(0, ui.dp(8), 0, ui.dp(16))
+        box.addView(ui.label("先選出最適合的答案", 14, ColorToken.Primary, true))
+        box.addView(ui.label(question.prompt, 27, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(10), 0, ui.dp(12))
+        })
+        box.addView(ui.body(question.repairHint, ColorToken.Muted).apply {
+            setPadding(0, 0, 0, ui.dp(8))
         })
         question.options.forEach { option ->
             box.addView(ui.secondaryButton(option) { answer(option) })
