@@ -295,6 +295,7 @@ class MainActivity : Activity() {
                 renderCheckIn()
             })
         }
+        root.addView(selectedMoodResponse())
         section("今天能用多久？")
         listOf(3, 5, 8, 12).forEach { value ->
             root.addView(durationChoice(value, value == minutes) {
@@ -410,9 +411,9 @@ class MainActivity : Activity() {
         screen = Screen.AiCoach
         val q = questions[currentQuestionIndex]
         shell("AI 即時陪伴", "錯題先變小，再重新嘗試")
-        root.addView(card("目前卡住的點", q.prompt, ColorToken.WarningSoft))
-        root.addView(card("AI 拆解", "${q.explanation}\n\n現在只要先記住這一個規則，不需要一次背完 am / is / are。", ColorToken.VioletSoft))
-        root.addView(card("低壓下一步", "回到同一題再試一次。如果第三次仍卡住，系統會自動整理給志工。", ColorToken.PrimarySoft))
+        root.addView(supportStepCard("01", "我看見你卡在這裡", q.prompt, ColorToken.WarningSoft, ColorToken.Warning))
+        root.addView(supportStepCard("02", "先把概念拆小", "${q.explanation}\n現在只要先記住這一個規則，不需要一次背完 am / is / are。", ColorToken.VioletSoft, ColorToken.Primary))
+        root.addView(supportStepCard("03", "你可以選下一步", "回到同一題再試一次；如果仍然不舒服，English+ 會幫你把狀況整理給志工。", ColorToken.PrimarySoft, ColorToken.Success))
         root.addView(ui.primaryButton("回題目再試一次") { renderLesson() })
         root.addView(ui.secondaryButton("交給志工接力") { renderHelpRequest() })
         bottomNav()
@@ -421,7 +422,8 @@ class MainActivity : Activity() {
     private fun renderHelpRequest() {
         screen = Screen.HelpRequest
         shell("主動求助", "讓學生用自己的話說出卡住的原因")
-        root.addView(card("求助不是失敗", "這一步的目標是降低學生開口成本。平台會先分流：能由 AI 處理的就立即拆小，需要真人陪伴的才交給志工。", ColorToken.SuccessSoft))
+        root.addView(helpIntroCard())
+        root.addView(flowStrip("說出卡點", "平台分流", "下一步"))
         helpRequestOptions.forEach { root.addView(helpOptionCard(it)) }
         root.addView(ui.secondaryButton("我還是想先自己試一題") { renderLesson() })
         bottomNav()
@@ -447,17 +449,18 @@ class MainActivity : Activity() {
 
     private fun renderBreakpoints() {
         screen = Screen.Breakpoints
-        shell("斷點中心", "把卡關變成可以處理的紀錄")
-        root.addView(card("處理原則", "連續錯題、停留過久、重複退出都不是懲罰理由，而是需要被接住的訊號。", ColorToken.WarningSoft))
+        shell("支持中心", "把卡關變成 English+ 可以接住的訊號")
+        root.addView(card("支持原則", "連續錯題、停留過久、重複退出都不是懲罰理由，而是調整任務與安排陪伴的訊號。", ColorToken.WarningSoft))
         breakpoints.forEach { root.addView(breakpointCard(it)) }
-        root.addView(ui.secondaryButton("查看平台如何介入情緒斷點") { renderInterventionFlow() })
-        root.addView(ui.primaryButton("生成志工接力摘要") { renderHandoff() })
+        root.addView(ui.secondaryButton("看看平台會怎麼支持我") { renderInterventionFlow() })
+        root.addView(ui.primaryButton("整理狀況給志工接力") { renderHandoff() })
         bottomNav()
     }
 
     private fun renderHandoff() {
         screen = Screen.Handoff
         shell("雲端志工接力", "把真人時間用在最值得的地方")
+        root.addView(preparedHandoffCard())
         root.addView(card("學生摘要", "${student.name}｜${student.location}｜${student.goal}\n目前心情：${mood.label}\n今日任務時間：${minutes} 分鐘", ColorToken.PrimarySoft))
         root.addView(card("斷點摘要", "${breakpoints.first().title}\n證據：${breakpoints.first().evidence}\nAI 已做：${breakpoints.first().aiAction}", ColorToken.WarningSoft))
         root.addView(card("建議陪伴語", "你願意回來做修復任務已經很好。今天我們只看一個規則，先不追完整進度。", ColorToken.SuccessSoft))
@@ -881,6 +884,23 @@ class MainActivity : Activity() {
         return ui.margins(box, 0, 8, 0, 16)
     }
 
+    private fun selectedMoodResponse(): View {
+        val fill = if (mood == Mood.Low) ColorToken.WarningSoft else ColorToken.SuccessSoft
+        val color = if (mood == Mood.Low) ColorToken.Warning else ColorToken.Success
+        val response = if (mood == Mood.Low) {
+            "English+ 會先縮短任務、保留求助出口，今天只做一小步也算完成。"
+        } else {
+            "English+ 會依你現在的狀態安排任務長度，讓開始比硬撐更容易。"
+        }
+        val box = ui.container(fill, ColorToken.Border)
+        box.addView(ui.statusPill("平台回應", color))
+        box.addView(ui.label("你選的是：${mood.label}", 18, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body(response, "#334155"))
+        return ui.margins(box, 0, 8, 0, 12)
+    }
+
     private fun planPreviewCard(): View {
         val box = ui.container(ColorToken.PrimarySoft, ColorToken.Border)
         box.addView(ui.statusPill("今日小計畫", ColorToken.Primary))
@@ -896,6 +916,36 @@ class MainActivity : Activity() {
             box.addView(ui.body("今天先慢一點也可以。若短任務還是卡住，平台會保留求助與接力出口。", ColorToken.Warning))
         }
         return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun supportStepCard(step: String, title: String, detail: String, fill: String, color: String): View {
+        val box = ui.container(fill, ColorToken.Border)
+        box.addView(ui.statusPill(step, color))
+        box.addView(ui.label(title, 18, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body(detail, "#334155"))
+        return ui.margins(box, 0, 8, 0, 8)
+    }
+
+    private fun helpIntroCard(): View {
+        val box = ui.sectionBand(ColorToken.SuccessSoft)
+        box.addView(ui.statusPill("可以開口", ColorToken.Success))
+        box.addView(ui.label("求助不是失敗，是選下一種支持", 20, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body("English+ 會先分流：能由 AI 立即拆小的就先陪你試，需要真人時才把脈絡整理好交出去。", "#334155"))
+        return ui.margins(box, 0, 8, 0, 16)
+    }
+
+    private fun preparedHandoffCard(): View {
+        val box = ui.sectionBand(ColorToken.SuccessSoft)
+        box.addView(ui.statusPill("已整理", ColorToken.Success))
+        box.addView(ui.label("你不用再重講一次卡在哪", 20, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body("English+ 已把心情狀態、任務長度、斷點證據和 AI 做過的處理一起整理，讓志工從陪伴開始。", "#334155"))
+        return ui.margins(box, 0, 8, 0, 16)
     }
 
     private fun currentTaskFocus(): View {
@@ -1169,13 +1219,29 @@ class MainActivity : Activity() {
     }
 
     private fun helpOptionCard(option: HelpRequestOption): View {
-        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        val routeColor = when (option.route) {
+            "志工接力" -> ColorToken.Danger
+            "復原模式" -> ColorToken.Warning
+            "離線任務" -> ColorToken.Accent
+            else -> ColorToken.Primary
+        }
+        val routeFill = when (option.route) {
+            "志工接力" -> ColorToken.WarningSoft
+            "復原模式" -> ColorToken.WarningSoft
+            "離線任務" -> ColorToken.AccentSoft
+            else -> ColorToken.PrimarySoft
+        }
+        val box = ui.container(routeFill, ColorToken.Border)
         val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         top.addView(ui.label(option.reason, 17, ColorToken.Ink, true), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        top.addView(ui.statusPill(option.route, if (option.route == "志工接力") ColorToken.Danger else ColorToken.Primary))
+        top.addView(ui.statusPill(option.route, routeColor))
         box.addView(top)
         box.addView(ui.body(option.studentText, ColorToken.Muted).apply { setPadding(0, ui.dp(8), 0, 0) })
-        box.addView(ui.body("平台動作：${option.platformAction}", "#334155").apply { setPadding(0, ui.dp(6), 0, 0) })
+        box.addView(ui.divider())
+        box.addView(ui.body("接下來：${option.platformAction}", "#334155"))
+        box.addView(ui.body("點一下，English+ 會先把這條支持路徑打開。", routeColor).apply {
+            setPadding(0, ui.dp(6), 0, 0)
+        })
         box.setOnClickListener { handleHelpRequest(option) }
         return ui.margins(box, 0, 8, 0, 8)
     }
