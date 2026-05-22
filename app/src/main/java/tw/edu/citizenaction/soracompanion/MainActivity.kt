@@ -124,24 +124,26 @@ class MainActivity : Activity() {
     }
 
     private fun studentHome() {
-        section("學生今日總覽")
-        root.addView(metricRow(
-            Metric("心情", mood.label, mood.color),
-            Metric("任務時間", "${minutes} 分鐘", ColorToken.Primary),
-            Metric("信心值", "$confidence%", ColorToken.Success)
-        ))
-        root.addView(flowStrip("心情檢測", "短任務", "AI 拆解", "志工接力"))
+        root.addView(todayRhythmCard())
+        section("今天有兩條路可以走")
+        root.addView(trackEntry(
+            "學習軌",
+            "先完成一個低壓任務",
+            "用 ${minutes} 分鐘接住今天的學習節奏，完成後再看錯題和學習地圖。",
+            ColorToken.PrimarySoft,
+            "查看今日任務"
+        ) { renderTaskQueue() })
+        root.addView(trackEntry(
+            "支持軌",
+            "先說說現在的感受",
+            "如果今天比較累，可以先回報心情，再決定要短練習、AI 陪伴或請老師接力。",
+            ColorToken.AccentSoft,
+            "先做心情回報"
+        ) { renderCheckIn() })
+        root.addView(flowStrip("心情回報", "今日任務", "即時回饋", "需要時接力"))
         root.addView(card("今日建議", "先做「${modules[1].title}」中的一題一概念任務。今天不是補完整章，而是把一個斷點修回來。", ColorToken.PrimarySoft))
         root.addView(contractPreviewCard(learningContracts.first()))
-        root.addView(actionGrid(
-            ActionItem("心情檢測", "調整任務難度") { renderCheckIn() },
-            ActionItem("今日任務", "3-5 分鐘微練習") { renderLesson() },
-            ActionItem("學習檔案", "看目標與偏好") { renderProfile() },
-            ActionItem("離線任務包", "碎片時間也能學") { renderOfflinePacks() }
-        ))
-        root.addView(ui.secondaryButton("帳號與班級資料") { renderAccountCenter() })
-        root.addView(ui.secondaryButton("查看完整使用旅程") { renderJourney() })
-        section("任務佇列")
+        section("下一步")
         studyTasks.take(2).forEach { root.addView(taskCard(it)) }
         if (customTaskCount > 0) {
             repeat(customTaskCount) { index ->
@@ -149,11 +151,17 @@ class MainActivity : Activity() {
             }
         }
         root.addView(ui.secondaryButton("查看所有任務安排") { renderTaskQueue() })
-        section("目前進度")
-        modules.take(3).forEach { root.addView(moduleCard(it)) }
-        root.addView(ui.secondaryButton("查看完整學習地圖") { renderMap() })
-        section("最近陪伴")
-        supportMessages.take(2).forEach { root.addView(messageCard(it)) }
+        section("今天的支持")
+        supportMessages.take(1).forEach { root.addView(messageCard(it)) }
+        root.addView(ui.secondaryButton("我想請平台幫我整理求助訊息") { renderHelpRequest() })
+        section("更多探索")
+        root.addView(actionGrid(
+            ActionItem("學習檔案", "看目標與偏好") { renderProfile() },
+            ActionItem("學習地圖", "看進度與斷點") { renderMap() },
+            ActionItem("離線任務包", "碎片時間也能學") { renderOfflinePacks() },
+            ActionItem("服務旅程", "了解雙軌接力") { renderJourney() }
+        ))
+        root.addView(ui.secondaryButton("帳號與班級資料") { renderAccountCenter() })
     }
 
     private fun mentorHome() {
@@ -251,8 +259,10 @@ class MainActivity : Activity() {
     private fun renderTaskQueue() {
         screen = Screen.Lesson
         shell("今日任務佇列", "依心情、時間與斷點自動排序")
+        root.addView(currentTaskFocus())
         root.addView(card("排程邏輯", "可用時間：${minutes} 分鐘｜模式：${mood.planName}\n先排低壓修復，再排挑戰題。", ColorToken.PrimarySoft))
         root.addView(ui.secondaryButton("查看今日學習契約") { renderLearningContract() })
+        section("後續任務")
         studyTasks.forEach { root.addView(taskCard(it)) }
         if (customTaskCount > 0) {
             section("老師新增任務")
@@ -273,9 +283,10 @@ class MainActivity : Activity() {
     private fun renderCheckIn() {
         screen = Screen.CheckIn
         shell("心情與時間檢測", "從狀態開始，而不是一進來就考試")
+        root.addView(checkInIntroCard())
         section("今天的狀態")
         Mood.values().forEach { item ->
-            root.addView(choiceCard(item.label, item.description, item.color) {
+            root.addView(moodChoiceCard(item.label, item.description, item.color) {
                 mood = item
                 minutes = item.defaultMinutes
                 confidence = (confidence + item.confidenceDelta).coerceIn(0, 100)
@@ -291,8 +302,9 @@ class MainActivity : Activity() {
                 renderCheckIn()
             })
         }
-        root.addView(card("平台調整", "模式：${mood.planName}\n任務時間：${minutes} 分鐘\n回饋方式：先提示、再修復，不用排行榜刺激。", ColorToken.PrimarySoft))
+        root.addView(planPreviewCard())
         root.addView(ui.primaryButton("產生今日任務") { renderLesson() })
+        root.addView(ui.secondaryButton("先回首頁看看兩條路") { renderHome() })
         bottomNav()
     }
 
@@ -300,9 +312,9 @@ class MainActivity : Activity() {
         screen = Screen.Lesson
         val q = questions[currentQuestionIndex]
         shell("今日短任務", "一題一概念，避免二度挫折")
-        root.addView(card("任務規則", "答錯不會扣分。連續卡住時，系統會標記斷點並改派修復任務。", ColorToken.PrimarySoft))
+        root.addView(lessonFocusCard())
         root.addView(questionCard(q))
-        root.addView(card("即時狀態", "錯誤次數：$wrongAttempts / 3\n最近回饋：$lastAnswerMessage", ColorToken.Card))
+        root.addView(lessonSupportCard())
         root.addView(ui.secondaryButton("我想直接求助") { renderHelpRequest() })
         root.addView(ui.secondaryButton("改做復原任務") { renderRecoveryMode() })
         bottomNav()
@@ -356,7 +368,7 @@ class MainActivity : Activity() {
     private fun renderSuccess(q: Question) {
         screen = Screen.Lesson
         shell("完成一個微任務", "把成功經驗存回學習地圖")
-        root.addView(card("做到了", "你完成第 $completedTasks 個微任務。\n${q.explanation}", ColorToken.SuccessSoft))
+        root.addView(successSummaryCard(q))
         root.addView(card("下一步", "系統會把這次成功記錄為「句型修復」進度，不需要一次補完整章。", ColorToken.PrimarySoft))
         root.addView(ui.primaryButton("做一個 20 秒反思") { renderReflection() })
         root.addView(ui.primaryButton("繼續下一題") { renderLesson() })
@@ -763,6 +775,121 @@ class MainActivity : Activity() {
         return ui.margins(box, 4, 4, 4, 4)
     }
 
+    private fun todayRhythmCard(): View {
+        val box = ui.sectionBand(ColorToken.Card)
+        box.addView(ui.eyebrow("Today"))
+        box.addView(ui.label("今天先照你的節奏走", 22, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(8), 0, ui.dp(4))
+        })
+        box.addView(ui.body("平台會依照心情、任務長度和信心值，先給你一個可以完成的小步驟。", ColorToken.Muted))
+        box.addView(metricRow(
+            Metric("心情", mood.label, mood.color),
+            Metric("任務", "${minutes} 分", ColorToken.Accent),
+            Metric("信心", "$confidence%", ColorToken.Success)
+        ))
+        box.addView(ui.primaryButton("開始今日任務") { renderTaskQueue() })
+        return ui.margins(box, 0, 8, 0, 16)
+    }
+
+    private fun trackEntry(
+        label: String,
+        title: String,
+        detail: String,
+        fill: String,
+        actionText: String,
+        action: () -> Unit
+    ): View {
+        val box = ui.container(fill, ColorToken.Border)
+        box.addView(ui.statusPill(label, if (label == "支持軌") ColorToken.Accent else ColorToken.Primary))
+        box.addView(ui.label(title, 18, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body(detail, "#334155"))
+        box.addView(ui.secondaryButton(actionText) { action() })
+        return ui.margins(box, 0, 8, 0, 8)
+    }
+
+    private fun checkInIntroCard(): View {
+        val box = ui.sectionBand(ColorToken.AccentSoft)
+        box.addView(ui.statusPill("CHECK IN", ColorToken.Accent))
+        box.addView(ui.label("先讓平台知道今天的你", 21, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body("心情不是額外步驟，它會幫你把任務縮到今天還做得到的大小。", "#334155"))
+        box.addView(metricRow(
+            Metric("建議", mood.planName, mood.color),
+            Metric("時間", "${minutes} 分", ColorToken.Primary),
+            Metric("狀態", "$confidence%", ColorToken.Success)
+        ))
+        return ui.margins(box, 0, 8, 0, 16)
+    }
+
+    private fun planPreviewCard(): View {
+        val box = ui.container(ColorToken.PrimarySoft, ColorToken.Border)
+        box.addView(ui.statusPill("今日小計畫", ColorToken.Primary))
+        box.addView(ui.label(mood.planName, 20, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body("任務時間：${minutes} 分鐘\n回饋方式：先提示、再修復，不用排行榜刺激。", "#334155"))
+        box.addView(ui.body("完成後可以再回來記下感受，讓下一次更貼近你。", ColorToken.Success).apply {
+            setPadding(0, ui.dp(8), 0, 0)
+        })
+        return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun currentTaskFocus(): View {
+        val task = studyTasks.first()
+        val box = ui.sectionBand(ColorToken.PrimarySoft)
+        box.addView(ui.statusPill("下一步", ColorToken.Accent))
+        box.addView(ui.label(task.title, 22, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body("${task.minutes} 分鐘｜${task.difficulty}難度｜${task.status}", ColorToken.Muted))
+        box.addView(ui.body(task.reason, "#334155").apply {
+            setPadding(0, ui.dp(8), 0, 0)
+        })
+        box.addView(ui.primaryButton("開始這個任務") { renderLesson() })
+        return ui.margins(box, 0, 8, 0, 16)
+    }
+
+    private fun lessonFocusCard(): View {
+        val box = ui.container(ColorToken.PrimarySoft, ColorToken.Border)
+        box.addView(ui.statusPill("一題一概念", ColorToken.Primary))
+        box.addView(ui.label("今天先把一個斷點修回來", 19, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body("答錯不會扣分。連續卡住時，系統會標記斷點並改派更小的修復任務。", "#334155"))
+        return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun lessonSupportCard(): View {
+        val fill = if (wrongAttempts > 0) ColorToken.WarningSoft else ColorToken.Card
+        val box = ui.container(fill, ColorToken.Border)
+        box.addView(ui.statusPill("即時狀態", if (wrongAttempts > 0) ColorToken.Warning else ColorToken.Success))
+        box.addView(metricRow(
+            Metric("題目", "${currentQuestionIndex + 1}/${questions.size}", ColorToken.Primary),
+            Metric("卡住", "$wrongAttempts/3", if (wrongAttempts > 0) ColorToken.Warning else ColorToken.Success),
+            Metric("信心", "$confidence%", ColorToken.Accent)
+        ))
+        box.addView(ui.body(lastAnswerMessage, "#334155"))
+        return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun successSummaryCard(question: Question): View {
+        val box = ui.sectionBand(ColorToken.SuccessSoft)
+        box.addView(ui.statusPill("完成", ColorToken.Success))
+        box.addView(ui.label("這一小步已經算數", 22, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body("你完成第 $completedTasks 個微任務。${question.explanation}", "#334155"))
+        box.addView(metricRow(
+            Metric("任務", "$completedTasks", ColorToken.Primary),
+            Metric("信心", "$confidence%", ColorToken.Success),
+            Metric("回饋", "已存", ColorToken.Accent)
+        ))
+        return ui.margins(box, 0, 8, 0, 16)
+    }
+
     private fun contractPreviewCard(contract: LearningContract): View {
         val box = ui.container(ColorToken.SuccessSoft, ColorToken.Border)
         box.addView(ui.label("今日學習契約", 14, ColorToken.Success, true))
@@ -1105,6 +1232,17 @@ class MainActivity : Activity() {
         box.addView(ui.body(subtitle, ColorToken.Muted))
         box.setOnClickListener { action() }
         return ui.margins(box, 0, 6, 0, 6)
+    }
+
+    private fun moodChoiceCard(title: String, subtitle: String, color: String, action: () -> Unit): View {
+        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        box.addView(ui.statusPill("感受", color))
+        box.addView(ui.label(title, 18, color, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body(subtitle, ColorToken.Muted))
+        box.setOnClickListener { action() }
+        return ui.margins(box, 0, 8, 0, 8)
     }
 
     private fun card(title: String, text: String, fill: String): View {
