@@ -125,18 +125,19 @@ class MainActivity : Activity() {
 
     private fun studentHome() {
         root.addView(todayRhythmCard())
+        root.addView(progressRhythmCard())
         section("今天有兩條路可以走")
         root.addView(trackEntry(
             "學習軌",
             "先完成一個低壓任務",
-            "用 ${minutes} 分鐘接住今天的學習節奏，完成後再看錯題和學習地圖。",
+            "現在最適合先做 ${minutes} 分鐘短任務，完成後會把這一小步寫回學習進度。",
             ColorToken.PrimarySoft,
             "查看今日任務"
         ) { renderTaskQueue() })
         root.addView(trackEntry(
             "支持軌",
             "先說說現在的感受",
-            "如果今天比較累，可以先回報心情，再決定要短練習、AI 陪伴或請老師接力。",
+            "如果今天比較累，先被理解也算前進。平台會依心情調整短練習、陪伴和接力。",
             ColorToken.AccentSoft,
             "先做心情回報"
         ) { renderCheckIn() })
@@ -286,7 +287,7 @@ class MainActivity : Activity() {
         root.addView(checkInIntroCard())
         section("今天的狀態")
         Mood.values().forEach { item ->
-            root.addView(moodChoiceCard(item.label, item.description, item.color) {
+            root.addView(moodChoiceCard(item.label, item.description, item.color, item == mood) {
                 mood = item
                 minutes = item.defaultMinutes
                 confidence = (confidence + item.confidenceDelta).coerceIn(0, 100)
@@ -296,7 +297,7 @@ class MainActivity : Activity() {
         }
         section("今天能用多久？")
         listOf(3, 5, 8, 12).forEach { value ->
-            root.addView(ui.secondaryButton("${value} 分鐘") {
+            root.addView(durationChoice(value, value == minutes) {
                 minutes = value
                 persistState()
                 renderCheckIn()
@@ -791,6 +792,23 @@ class MainActivity : Activity() {
         return ui.margins(box, 0, 8, 0, 16)
     }
 
+    private fun progressRhythmCard(): View {
+        val totalSteps = 6
+        val todayProgress = (completedTasks % totalSteps).coerceAtLeast(1)
+        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        box.addView(ui.statusPill("今日節奏", ColorToken.Primary))
+        box.addView(ui.label("小步驟 ${todayProgress} / $totalSteps", 18, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            max = totalSteps
+            progress = todayProgress
+            setPadding(0, ui.dp(8), 0, ui.dp(8))
+        })
+        box.addView(ui.body("你已完成 $completedTasks 個微任務。下一步先把今天最小的一題做完。", "#334155"))
+        return ui.margins(box, 0, 0, 0, 12)
+    }
+
     private fun trackEntry(
         label: String,
         title: String,
@@ -834,13 +852,17 @@ class MainActivity : Activity() {
         box.addView(ui.body("完成後可以再回來記下感受，讓下一次更貼近你。", ColorToken.Success).apply {
             setPadding(0, ui.dp(8), 0, 0)
         })
+        if (mood == Mood.Low) {
+            box.addView(ui.divider())
+            box.addView(ui.body("今天先慢一點也可以。若短任務還是卡住，平台會保留求助與接力出口。", ColorToken.Warning))
+        }
         return ui.margins(box, 0, 8, 0, 12)
     }
 
     private fun currentTaskFocus(): View {
         val task = studyTasks.first()
         val box = ui.sectionBand(ColorToken.PrimarySoft)
-        box.addView(ui.statusPill("下一步", ColorToken.Accent))
+        box.addView(ui.statusPill("Checkpoint ${currentQuestionIndex + 1}", ColorToken.Accent))
         box.addView(ui.label(task.title, 22, ColorToken.Ink, true).apply {
             setPadding(0, ui.dp(12), 0, ui.dp(4))
         })
@@ -859,6 +881,9 @@ class MainActivity : Activity() {
             setPadding(0, ui.dp(12), 0, ui.dp(4))
         })
         box.addView(ui.body("答錯不會扣分。連續卡住時，系統會標記斷點並改派更小的修復任務。", "#334155"))
+        box.addView(ui.body("這一關目標：看懂題目、選一次、收到可以修復的回饋。", ColorToken.Success).apply {
+            setPadding(0, ui.dp(8), 0, 0)
+        })
         return ui.margins(box, 0, 8, 0, 12)
     }
 
@@ -887,6 +912,7 @@ class MainActivity : Activity() {
             Metric("信心", "$confidence%", ColorToken.Success),
             Metric("回饋", "已存", ColorToken.Accent)
         ))
+        box.addView(ui.body("下一步已開啟：可以進下一題，也可以先做 20 秒反思把完成感留下來。", ColorToken.Primary))
         return ui.margins(box, 0, 8, 0, 16)
     }
 
@@ -1234,13 +1260,25 @@ class MainActivity : Activity() {
         return ui.margins(box, 0, 6, 0, 6)
     }
 
-    private fun moodChoiceCard(title: String, subtitle: String, color: String, action: () -> Unit): View {
-        val box = ui.container(ColorToken.Card, ColorToken.Border)
-        box.addView(ui.statusPill("感受", color))
+    private fun moodChoiceCard(title: String, subtitle: String, color: String, selected: Boolean, action: () -> Unit): View {
+        val fill = if (selected) ColorToken.SuccessSoft else ColorToken.Card
+        val box = ui.container(fill, if (selected) color else ColorToken.Border)
+        box.addView(ui.statusPill(if (selected) "已選擇" else "感受", color))
         box.addView(ui.label(title, 18, color, true).apply {
             setPadding(0, ui.dp(12), 0, ui.dp(4))
         })
         box.addView(ui.body(subtitle, ColorToken.Muted))
+        box.setOnClickListener { action() }
+        return ui.margins(box, 0, 8, 0, 8)
+    }
+
+    private fun durationChoice(value: Int, selected: Boolean, action: () -> Unit): View {
+        val box = ui.container(if (selected) ColorToken.AccentSoft else ColorToken.Card, if (selected) ColorToken.Accent else ColorToken.Border)
+        box.addView(ui.statusPill(if (selected) "目前節奏" else "可選時間", if (selected) ColorToken.Accent else ColorToken.Primary))
+        box.addView(ui.label("${value} 分鐘", 19, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body(if (selected) "這是現在的任務長度。" else "切換成這個長度，平台會重新調整今天任務。", ColorToken.Muted))
         box.setOnClickListener { action() }
         return ui.margins(box, 0, 8, 0, 8)
     }
