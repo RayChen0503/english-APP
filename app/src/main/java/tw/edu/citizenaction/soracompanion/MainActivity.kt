@@ -704,7 +704,7 @@ class MainActivity : Activity() {
         }
         scroll.addView(root)
         setContentView(scroll)
-        root.addView(ui.eyebrow("Sora Companion"))
+        root.addView(ui.eyebrow("${navigationArea()} / Sora Companion"))
         root.addView(ui.label(title, 28, ColorToken.Ink, true).apply { setPadding(0, ui.dp(8), 0, ui.dp(4)) })
         root.addView(ui.body(subtitle, ColorToken.Muted))
         root.addView(ui.space(16))
@@ -712,6 +712,20 @@ class MainActivity : Activity() {
 
     private fun hero(title: String, text: String) {
         val box = ui.container(ColorToken.Ink, ColorToken.Ink)
+        val brand = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        brand.addView(brandMark())
+        brand.addView(ui.label("Sora", 16, "#FFFFFF", true).apply {
+            setPadding(ui.dp(10), 0, 0, 0)
+        })
+        brand.addView(ui.statusPill("雙軌", ColorToken.Accent), LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { setMargins(ui.dp(8), 0, 0, 0) })
+        box.addView(brand)
+        box.addView(ui.space(12))
         val pulse = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         pulse.addView(ui.statusPill("${minutes} min", ColorToken.Accent))
         pulse.addView(ui.statusPill("${confidence}%", ColorToken.Success), LinearLayout.LayoutParams(
@@ -745,12 +759,48 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             setPadding(ui.dp(8), ui.dp(8), ui.dp(8), ui.dp(8))
         }
-        nav.addView(ui.chipButton("首頁", screen == Screen.Home || screen == Screen.Account) { renderHome() })
-        nav.addView(ui.chipButton("任務", screen == Screen.Lesson || screen == Screen.AiCoach || screen == Screen.Contract || screen == Screen.Reflection) { renderLesson() })
-        nav.addView(ui.chipButton("斷點", screen == Screen.Breakpoints || screen == Screen.Handoff || screen == Screen.Intervention || screen == Screen.HelpRequest) { renderBreakpoints() })
-        nav.addView(ui.chipButton("地圖", screen == Screen.Map || screen == Screen.Report || screen == Screen.Journey || screen == Screen.StudentDetail || screen == Screen.ActionQueue || screen == Screen.StudentManager || screen == Screen.AiLab || screen == Screen.SyncCenter) { renderMap() })
-        nav.addView(ui.chipButton("檔案", screen == Screen.Profile) { renderProfile() })
+        nav.addView(navDestination("H", "首頁", screen == Screen.Home || screen == Screen.Account) { renderHome() }, ui.weightParams())
+        nav.addView(navDestination("T", "任務", screen == Screen.Lesson || screen == Screen.AiCoach || screen == Screen.Contract || screen == Screen.Reflection) { renderTaskQueue() }, ui.weightParams())
+        nav.addView(navDestination("S", "支持", screen == Screen.Breakpoints || screen == Screen.Handoff || screen == Screen.Intervention || screen == Screen.HelpRequest) { renderBreakpoints() }, ui.weightParams())
+        nav.addView(navDestination("M", "地圖", screen == Screen.Map || screen == Screen.Report || screen == Screen.Journey || screen == Screen.StudentDetail || screen == Screen.ActionQueue || screen == Screen.StudentManager || screen == Screen.AiLab || screen == Screen.SyncCenter) { renderMap() }, ui.weightParams())
+        nav.addView(navDestination("P", "檔案", screen == Screen.Profile) { renderProfile() }, ui.weightParams())
         root.addView(ui.margins(nav, 0, 0, 0, 8))
+    }
+
+    private fun navigationArea(): String = when (screen) {
+        Screen.Home, Screen.Account -> "首頁"
+        Screen.Lesson, Screen.AiCoach, Screen.Contract, Screen.Reflection -> "任務"
+        Screen.Breakpoints, Screen.Handoff, Screen.Intervention, Screen.HelpRequest -> "支持"
+        Screen.Profile -> "檔案"
+        else -> "地圖"
+    }
+
+    private fun brandMark(): View {
+        return ui.label("S", 16, ColorToken.Ink, true).apply {
+            gravity = Gravity.CENTER
+            setPadding(ui.dp(10), ui.dp(6), ui.dp(10), ui.dp(6))
+            background = ui.rounded(ColorToken.AccentSoft, ColorToken.Accent)
+        }
+    }
+
+    private fun navDestination(mark: String, label: String, selected: Boolean, action: () -> Unit): View {
+        val fill = if (selected) ColorToken.PrimarySoft else ColorToken.Card
+        val stroke = if (selected) ColorToken.Primary else ColorToken.Border
+        val box = ui.container(fill, stroke).apply {
+            gravity = Gravity.CENTER
+            setPadding(ui.dp(4), ui.dp(8), ui.dp(4), ui.dp(8))
+            setOnClickListener { action() }
+        }
+        box.addView(ui.label(mark, 13, if (selected) ColorToken.Primary else ColorToken.Muted, true).apply {
+            gravity = Gravity.CENTER
+            setPadding(ui.dp(8), ui.dp(4), ui.dp(8), ui.dp(4))
+            background = ui.rounded(if (selected) ColorToken.Card else ColorToken.Surface, stroke)
+        })
+        box.addView(ui.label(label, 12, if (selected) ColorToken.Ink else ColorToken.Muted, true).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, ui.dp(4), 0, 0)
+        })
+        return box
     }
 
     private fun actionGrid(a: ActionItem, b: ActionItem, c: ActionItem, d: ActionItem): View {
