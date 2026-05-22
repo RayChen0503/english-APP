@@ -13,19 +13,21 @@ import kotlin.math.roundToInt
 
 class UiKit(private val activity: Activity) {
     object ColorToken {
-        const val Ink = "#14213D"
-        const val Muted = "#64748B"
-        const val Surface = "#F6F8FB"
+        const val Ink = "#17324D"
+        const val Muted = "#5F7287"
+        const val Surface = "#F4F7F5"
         const val Card = "#FFFFFF"
-        const val Primary = "#2457D6"
-        const val PrimarySoft = "#EAF1FF"
-        const val Success = "#0F766E"
-        const val SuccessSoft = "#EAF8F5"
-        const val Warning = "#B45309"
-        const val WarningSoft = "#FFF7ED"
-        const val Danger = "#B91C1C"
-        const val VioletSoft = "#F6F0FF"
-        const val Border = "#DDE5EF"
+        const val Primary = "#1C6E74"
+        const val PrimarySoft = "#E4F4F1"
+        const val Accent = "#F08A3C"
+        const val AccentSoft = "#FFF0E5"
+        const val Success = "#26734D"
+        const val SuccessSoft = "#E7F6EC"
+        const val Warning = "#A15A14"
+        const val WarningSoft = "#FFF3DC"
+        const val Danger = "#B63F4C"
+        const val VioletSoft = "#F1ECFF"
+        const val Border = "#D7E3DF"
     }
 
     fun label(text: String, size: Int, color: String, bold: Boolean = false): TextView {
@@ -43,30 +45,32 @@ class UiKit(private val activity: Activity) {
             this.text = text
             textSize = 15f
             setTextColor(Color.parseColor(color))
-            setLineSpacing(dp(3).toFloat(), 1.0f)
+            setLineSpacing(dp(4).toFloat(), 1.0f)
             includeFontPadding = true
         }
     }
 
     fun eyebrow(text: String): TextView {
         return label(text.uppercase(), 12, ColorToken.Primary, true).apply {
-            letterSpacing = 0.08f
+            letterSpacing = 0.04f
         }
     }
 
     fun container(fill: String = "#FFFFFF", stroke: String = "#E1E7EF"): LinearLayout {
         return LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(16), dp(18), dp(16))
+            setPadding(dp(20), dp(20), dp(20), dp(20))
             background = rounded(fill, stroke)
+            elevation = dp(2).toFloat()
         }
     }
 
     fun sectionBand(fill: String = ColorToken.Card): LinearLayout {
         return LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(18), dp(18), dp(18))
+            setPadding(dp(24), dp(24), dp(24), dp(24))
             background = rounded(fill, ColorToken.Border)
+            elevation = dp(1).toFloat()
         }
     }
 
@@ -77,7 +81,8 @@ class UiKit(private val activity: Activity) {
             setAllCaps(false)
             setTextColor(Color.WHITE)
             background = rounded(ColorToken.Primary, ColorToken.Primary)
-            minHeight = dp(48)
+            minHeight = dp(52)
+            elevation = dp(2).toFloat()
             setOnClickListener { action() }
             layoutParams = fullWidthParams()
         }
@@ -89,8 +94,8 @@ class UiKit(private val activity: Activity) {
             textSize = 16f
             setAllCaps(false)
             setTextColor(Color.parseColor(ColorToken.Primary))
-            background = rounded(ColorToken.PrimarySoft, "#B8CCF9")
-            minHeight = dp(46)
+            background = rounded(ColorToken.PrimarySoft, ColorToken.Border)
+            minHeight = dp(48)
             setOnClickListener { action() }
             layoutParams = fullWidthParams()
         }
@@ -102,8 +107,8 @@ class UiKit(private val activity: Activity) {
             textSize = 14f
             setAllCaps(false)
             setTextColor(Color.parseColor(if (selected) "#FFFFFF" else ColorToken.Muted))
-            background = rounded(if (selected) ColorToken.Ink else "#FFFFFF", ColorToken.Border)
-            minHeight = dp(42)
+            background = rounded(if (selected) ColorToken.Ink else ColorToken.Card, if (selected) ColorToken.Ink else ColorToken.Border)
+            minHeight = dp(48)
             setOnClickListener { action() }
             layoutParams = weightParams()
         }
@@ -112,8 +117,8 @@ class UiKit(private val activity: Activity) {
     fun statusPill(text: String, color: String): TextView {
         return label(text, 12, color, true).apply {
             gravity = Gravity.CENTER
-            setPadding(dp(10), dp(4), dp(10), dp(4))
-            background = rounded("#FFFFFF", color)
+            setPadding(dp(12), dp(4), dp(12), dp(4))
+            background = rounded(pillFill(color), color)
         }
     }
 
@@ -123,14 +128,14 @@ class UiKit(private val activity: Activity) {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(1)
-            ).apply { setMargins(0, dp(12), 0, dp(12)) }
+            ).apply { setMargins(0, dp(16), 0, dp(16)) }
         }
     }
 
     fun rounded(fill: String, stroke: String): GradientDrawable {
         return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(14).toFloat()
+            cornerRadius = dp(8).toFloat()
             setColor(Color.parseColor(fill))
             setStroke(dp(1), Color.parseColor(stroke))
         }
@@ -155,12 +160,12 @@ class UiKit(private val activity: Activity) {
         return LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { setMargins(0, dp(7), 0, dp(5)) }
+        ).apply { setMargins(0, dp(8), 0, dp(8)) }
     }
 
     fun weightParams(): LinearLayout.LayoutParams {
         return LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-            setMargins(dp(3), dp(3), dp(3), dp(3))
+            setMargins(dp(4), dp(4), dp(4), dp(4))
         }
     }
 
@@ -171,4 +176,13 @@ class UiKit(private val activity: Activity) {
     }
 
     fun dp(value: Int): Int = (value * activity.resources.displayMetrics.density).roundToInt()
+
+    private fun pillFill(color: String): String = when (color) {
+        ColorToken.Primary -> ColorToken.PrimarySoft
+        ColorToken.Success -> ColorToken.SuccessSoft
+        ColorToken.Warning -> ColorToken.WarningSoft
+        ColorToken.Danger -> "#FDEBED"
+        ColorToken.Accent -> ColorToken.AccentSoft
+        else -> ColorToken.Card
+    }
 }

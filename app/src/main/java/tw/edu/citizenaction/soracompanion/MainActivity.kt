@@ -686,22 +686,31 @@ class MainActivity : Activity() {
         val scroll = ScrollView(this)
         root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(ui.dp(18), ui.dp(22), ui.dp(18), ui.dp(24))
+            setPadding(ui.dp(16), ui.dp(24), ui.dp(16), ui.dp(24))
             background = ui.solid(ColorToken.Surface)
         }
         scroll.addView(root)
         setContentView(scroll)
         root.addView(ui.eyebrow("Sora Companion"))
-        root.addView(ui.label(title, 28, ColorToken.Ink, true).apply { setPadding(0, ui.dp(6), 0, ui.dp(4)) })
+        root.addView(ui.label(title, 28, ColorToken.Ink, true).apply { setPadding(0, ui.dp(8), 0, ui.dp(4)) })
         root.addView(ui.body(subtitle, ColorToken.Muted))
-        root.addView(ui.space(12))
+        root.addView(ui.space(16))
     }
 
     private fun hero(title: String, text: String) {
         val box = ui.container(ColorToken.Ink, ColorToken.Ink)
+        val pulse = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        pulse.addView(ui.statusPill("${minutes} min", ColorToken.Accent))
+        pulse.addView(ui.statusPill("${confidence}%", ColorToken.Success), LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { setMargins(ui.dp(8), 0, 0, 0) })
+        box.addView(pulse)
+        box.addView(ui.space(12))
         box.addView(ui.label(title, 22, "#FFFFFF", true))
-        box.addView(ui.body(text, "#D8E4FF").apply { setPadding(0, ui.dp(8), 0, 0) })
-        root.addView(ui.margins(box, 0, 10, 0, 14))
+        box.addView(ui.body(text, "#D6E6E3").apply { setPadding(0, ui.dp(8), 0, 0) })
+        box.addView(ui.label(roleLabel(), 13, "#F7D8C0", true).apply { setPadding(0, ui.dp(12), 0, 0) })
+        root.addView(ui.margins(box, 0, 8, 0, 16))
     }
 
     private fun roleSwitch(): View {
@@ -714,18 +723,21 @@ class MainActivity : Activity() {
             role = Role.Mentor
             renderHome()
         })
-        return ui.margins(row, 0, 4, 0, 12)
+        return ui.margins(row, 0, 8, 0, 16)
     }
 
     private fun bottomNav() {
-        root.addView(ui.space(12))
-        val nav = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        root.addView(ui.space(16))
+        val nav = ui.container(ColorToken.Card, ColorToken.Border).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(ui.dp(8), ui.dp(8), ui.dp(8), ui.dp(8))
+        }
         nav.addView(ui.chipButton("首頁", screen == Screen.Home || screen == Screen.Account) { renderHome() })
         nav.addView(ui.chipButton("任務", screen == Screen.Lesson || screen == Screen.AiCoach || screen == Screen.Contract || screen == Screen.Reflection) { renderLesson() })
         nav.addView(ui.chipButton("斷點", screen == Screen.Breakpoints || screen == Screen.Handoff || screen == Screen.Intervention || screen == Screen.HelpRequest) { renderBreakpoints() })
         nav.addView(ui.chipButton("地圖", screen == Screen.Map || screen == Screen.Report || screen == Screen.Journey || screen == Screen.StudentDetail || screen == Screen.ActionQueue || screen == Screen.StudentManager || screen == Screen.AiLab || screen == Screen.SyncCenter) { renderMap() })
         nav.addView(ui.chipButton("檔案", screen == Screen.Profile) { renderProfile() })
-        root.addView(nav)
+        root.addView(ui.margins(nav, 0, 0, 0, 8))
     }
 
     private fun actionGrid(a: ActionItem, b: ActionItem, c: ActionItem, d: ActionItem): View {
@@ -742,9 +754,11 @@ class MainActivity : Activity() {
     }
 
     private fun actionCard(item: ActionItem): View {
-        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        val box = ui.container(ColorToken.PrimarySoft, ColorToken.Border)
+        box.addView(ui.statusPill("GO", ColorToken.Accent))
+        box.addView(ui.space(8))
         box.addView(ui.label(item.title, 16, ColorToken.Ink, true))
-        box.addView(ui.body(item.subtitle, ColorToken.Muted))
+        box.addView(ui.body(item.subtitle, ColorToken.Muted).apply { setPadding(0, ui.dp(4), 0, 0) })
         box.setOnClickListener { item.action() }
         return ui.margins(box, 4, 4, 4, 4)
     }
@@ -859,19 +873,19 @@ class MainActivity : Activity() {
     }
 
     private fun flowStrip(vararg steps: String): View {
-        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        val box = ui.container(ColorToken.PrimarySoft, ColorToken.Border)
         box.addView(ui.label("今日服務路徑", 14, ColorToken.Muted, true))
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         steps.forEachIndexed { index, step ->
             val node = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                setPadding(ui.dp(5), ui.dp(8), ui.dp(5), ui.dp(6))
+                setPadding(ui.dp(4), ui.dp(8), ui.dp(4), ui.dp(8))
             }
-            node.addView(ui.statusPill("${index + 1}", if (index <= 1) ColorToken.Primary else ColorToken.Success))
+            node.addView(ui.statusPill("${index + 1}", if (index == 0) ColorToken.Accent else if (index <= 1) ColorToken.Primary else ColorToken.Success))
             node.addView(ui.label(step, 12, ColorToken.Ink, true).apply {
                 gravity = Gravity.CENTER
-                setPadding(0, ui.dp(5), 0, 0)
+                setPadding(0, ui.dp(4), 0, 0)
             })
             row.addView(node, ui.weightParams())
         }
@@ -882,9 +896,15 @@ class MainActivity : Activity() {
     private fun questionCard(question: Question): View {
         val box = ui.container(ColorToken.Card, ColorToken.Border)
         box.addView(ui.label("題目 ${currentQuestionIndex + 1} / ${questions.size}", 14, ColorToken.Muted, true))
-        box.addView(ui.label(question.prompt, 30, ColorToken.Ink, true).apply {
+        box.addView(ui.statusPill(question.type, ColorToken.Accent))
+        box.addView(ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            max = questions.size
+            progress = currentQuestionIndex + 1
+            setPadding(0, ui.dp(12), 0, ui.dp(8))
+        })
+        box.addView(ui.label(question.prompt, 26, ColorToken.Ink, true).apply {
             gravity = Gravity.CENTER
-            setPadding(0, ui.dp(14), 0, ui.dp(14))
+            setPadding(0, ui.dp(8), 0, ui.dp(16))
         })
         question.options.forEach { option ->
             box.addView(ui.secondaryButton(option) { answer(option) })
@@ -1071,10 +1091,12 @@ class MainActivity : Activity() {
     }
 
     private fun metricCard(metric: Metric): View {
-        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        val box = ui.container(ColorToken.Card, ColorToken.Border).apply {
+            setPadding(ui.dp(12), ui.dp(16), ui.dp(12), ui.dp(16))
+        }
         box.addView(ui.label(metric.label, 12, ColorToken.Muted, true))
-        box.addView(ui.label(metric.value, 18, metric.color, true))
-        return ui.margins(box, 3, 3, 3, 3)
+        box.addView(ui.label(metric.value, 20, metric.color, true).apply { setPadding(0, ui.dp(4), 0, 0) })
+        return ui.margins(box, 4, 4, 4, 4)
     }
 
     private fun choiceCard(title: String, subtitle: String, color: String, action: () -> Unit): View {
@@ -1088,13 +1110,13 @@ class MainActivity : Activity() {
     private fun card(title: String, text: String, fill: String): View {
         val box = ui.container(fill, ColorToken.Border)
         box.addView(ui.label(title, 17, ColorToken.Ink, true))
-        box.addView(ui.body(text, "#334155").apply { setPadding(0, ui.dp(7), 0, 0) })
-        return ui.margins(box, 0, 8, 0, 10)
+        box.addView(ui.body(text, "#334155").apply { setPadding(0, ui.dp(8), 0, 0) })
+        return ui.margins(box, 0, 8, 0, 12)
     }
 
     private fun section(text: String) {
         root.addView(ui.label(text, 19, ColorToken.Ink, true).apply {
-            setPadding(0, ui.dp(22), 0, ui.dp(8))
+            setPadding(0, ui.dp(24), 0, ui.dp(8))
         })
     }
 }
