@@ -34,7 +34,7 @@ The bottom navigation should become a more recognizable app pattern.
 
 ## Identity Design
 
-The home hero should carry a stronger Sora identity.
+The home hero should carry a stronger English+ identity.
 
 - Keep a supportive headline and the current state cues.
 - Add a compact brand mark treatment using native shapes/text rather than remote assets.

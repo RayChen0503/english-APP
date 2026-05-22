@@ -116,7 +116,7 @@ class MainActivity : Activity() {
 
     private fun renderHome() {
         screen = Screen.Home
-        shell("Sora Companion", "偏鄉學生雙軌學習平台")
+        shell("English+", "偏鄉學生雙軌學習平台")
         hero("先接住情緒，再修復英文斷點", "學生卡關時由 AI 即時拆小任務；真正需要人的地方，再把斷點摘要交給雲端志工或老師。")
         root.addView(roleSwitch())
         if (role == Role.Student) studentHome() else mentorHome()
@@ -124,8 +124,7 @@ class MainActivity : Activity() {
     }
 
     private fun studentHome() {
-        root.addView(todayRhythmCard())
-        root.addView(progressRhythmCard())
+        root.addView(nextActionCard())
         section("今天有兩條路可以走")
         root.addView(trackEntry(
             "學習軌",
@@ -141,6 +140,7 @@ class MainActivity : Activity() {
             ColorToken.AccentSoft,
             "先做心情回報"
         ) { renderCheckIn() })
+        root.addView(progressRhythmCard())
         root.addView(flowStrip("心情回報", "今日任務", "即時回饋", "需要時接力"))
         root.addView(card("今日建議", "先做「${modules[1].title}」中的一題一概念任務。今天不是補完整章，而是把一個斷點修回來。", ColorToken.PrimarySoft))
         root.addView(contractPreviewCard(learningContracts.first()))
@@ -230,7 +230,7 @@ class MainActivity : Activity() {
     private fun renderJourney() {
         screen = Screen.Journey
         shell("完整使用旅程", "從不敢開始，到完成修復，再回到學習")
-        root.addView(card("這不是一般題庫流程", "Sora Companion 的主流程不是「打開就考試」，而是先判斷學生能不能承受今天的任務，再決定 AI 或真人要在哪裡介入。", ColorToken.PrimarySoft))
+        root.addView(card("這不是一般題庫流程", "English+ 的主流程不是「打開就考試」，而是先判斷學生能不能承受今天的任務，再決定 AI 或真人要在哪裡介入。", ColorToken.PrimarySoft))
         journeySteps.forEachIndexed { index, item ->
             root.addView(journeyCard(index + 1, item))
         }
@@ -704,7 +704,7 @@ class MainActivity : Activity() {
         }
         scroll.addView(root)
         setContentView(scroll)
-        root.addView(ui.eyebrow("${navigationArea()} / Sora Companion"))
+        root.addView(ui.eyebrow("${navigationArea()} / English+"))
         root.addView(ui.label(title, 28, ColorToken.Ink, true).apply { setPadding(0, ui.dp(8), 0, ui.dp(4)) })
         root.addView(ui.body(subtitle, ColorToken.Muted))
         root.addView(ui.space(16))
@@ -717,7 +717,7 @@ class MainActivity : Activity() {
             gravity = Gravity.TOP
         }
         val identity = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        identity.addView(ui.label("Sora Companion", 18, "#FFFFFF", true))
+        identity.addView(ui.label("English+", 18, "#FFFFFF", true))
         identity.addView(ui.label("偏鄉學生雙軌學習平台", 13, "#C7DAD6", true).apply {
             setPadding(0, ui.dp(4), 0, 0)
         })
@@ -731,11 +731,6 @@ class MainActivity : Activity() {
         box.addView(ui.space(20))
         box.addView(ui.label(title, 23, "#FFFFFF", true))
         box.addView(ui.body(text, "#D6E6E3").apply { setPadding(0, ui.dp(8), 0, 0) })
-        box.addView(ui.space(16))
-        val pulse = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        pulse.addView(heroStat("今日任務", "${minutes} 分鐘"), ui.weightParams())
-        pulse.addView(heroStat("信心值", "$confidence%"), ui.weightParams())
-        box.addView(pulse)
         box.addView(ui.label(roleLabel(), 13, "#F7D8C0", true).apply { setPadding(0, ui.dp(12), 0, 0) })
         root.addView(ui.margins(box, 0, 8, 0, 16))
     }
@@ -795,18 +790,6 @@ class MainActivity : Activity() {
         return box
     }
 
-    private fun heroStat(label: String, value: String): View {
-        val box = ui.container("#214258", "#365C73").apply {
-            setPadding(ui.dp(12), ui.dp(12), ui.dp(12), ui.dp(12))
-            elevation = 0f
-        }
-        box.addView(ui.label(label, 12, "#C7DAD6", true))
-        box.addView(ui.label(value, 16, "#FFFFFF", true).apply {
-            setPadding(0, ui.dp(4), 0, 0)
-        })
-        return box
-    }
-
     private fun actionGrid(a: ActionItem, b: ActionItem, c: ActionItem, d: ActionItem): View {
         val outer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val row1 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -830,19 +813,21 @@ class MainActivity : Activity() {
         return ui.margins(box, 4, 4, 4, 4)
     }
 
-    private fun todayRhythmCard(): View {
+    private fun nextActionCard(): View {
+        val task = studyTasks.first()
         val box = ui.sectionBand(ColorToken.Card)
-        box.addView(ui.eyebrow("Today"))
-        box.addView(ui.label("今天先照你的節奏走", 22, ColorToken.Ink, true).apply {
+        box.addView(ui.eyebrow("今天先做這個"))
+        box.addView(ui.label(task.title, 22, ColorToken.Ink, true).apply {
             setPadding(0, ui.dp(8), 0, ui.dp(4))
         })
-        box.addView(ui.body("平台會依照心情、任務長度和信心值，先給你一個可以完成的小步驟。", ColorToken.Muted))
+        box.addView(ui.body(task.reason, "#334155"))
         box.addView(metricRow(
             Metric("心情", mood.label, mood.color),
             Metric("任務", "${minutes} 分", ColorToken.Accent),
             Metric("信心", "$confidence%", ColorToken.Success)
         ))
-        box.addView(ui.primaryButton("開始今日任務") { renderTaskQueue() })
+        box.addView(ui.primaryButton("開始這個任務") { renderTaskQueue() })
+        box.addView(ui.secondaryButton("我想先調整今天狀態") { renderCheckIn() })
         return ui.margins(box, 0, 8, 0, 16)
     }
 

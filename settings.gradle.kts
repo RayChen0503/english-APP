@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SoraCompanion"
+rootProject.name = "EnglishPlus"
 include(":app")
