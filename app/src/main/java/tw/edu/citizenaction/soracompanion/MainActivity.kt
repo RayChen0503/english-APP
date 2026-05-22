@@ -714,28 +714,28 @@ class MainActivity : Activity() {
         val box = ui.container(ColorToken.Ink, ColorToken.Ink)
         val brand = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+            gravity = Gravity.TOP
         }
-        brand.addView(brandMark())
-        brand.addView(ui.label("Sora", 16, "#FFFFFF", true).apply {
-            setPadding(ui.dp(10), 0, 0, 0)
+        val identity = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        identity.addView(ui.label("Sora Companion", 18, "#FFFFFF", true))
+        identity.addView(ui.label("偏鄉學生雙軌學習平台", 13, "#C7DAD6", true).apply {
+            setPadding(0, ui.dp(4), 0, 0)
         })
-        brand.addView(ui.statusPill("雙軌", ColorToken.Accent), LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { setMargins(ui.dp(8), 0, 0, 0) })
+        brand.addView(identity, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        brand.addView(ui.label("雙軌陪伴", 12, "#F7D8C0", true).apply {
+            gravity = Gravity.CENTER
+            setPadding(ui.dp(10), ui.dp(6), ui.dp(10), ui.dp(6))
+            background = ui.rounded("#274A60", "#365C73")
+        })
         box.addView(brand)
-        box.addView(ui.space(12))
-        val pulse = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        pulse.addView(ui.statusPill("${minutes} min", ColorToken.Accent))
-        pulse.addView(ui.statusPill("${confidence}%", ColorToken.Success), LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { setMargins(ui.dp(8), 0, 0, 0) })
-        box.addView(pulse)
-        box.addView(ui.space(12))
-        box.addView(ui.label(title, 22, "#FFFFFF", true))
+        box.addView(ui.space(20))
+        box.addView(ui.label(title, 23, "#FFFFFF", true))
         box.addView(ui.body(text, "#D6E6E3").apply { setPadding(0, ui.dp(8), 0, 0) })
+        box.addView(ui.space(16))
+        val pulse = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        pulse.addView(heroStat("今日任務", "${minutes} 分鐘"), ui.weightParams())
+        pulse.addView(heroStat("信心值", "$confidence%"), ui.weightParams())
+        box.addView(pulse)
         box.addView(ui.label(roleLabel(), 13, "#F7D8C0", true).apply { setPadding(0, ui.dp(12), 0, 0) })
         root.addView(ui.margins(box, 0, 8, 0, 16))
     }
@@ -775,14 +775,6 @@ class MainActivity : Activity() {
         else -> "地圖"
     }
 
-    private fun brandMark(): View {
-        return ui.label("S", 16, ColorToken.Ink, true).apply {
-            gravity = Gravity.CENTER
-            setPadding(ui.dp(10), ui.dp(6), ui.dp(10), ui.dp(6))
-            background = ui.rounded(ColorToken.AccentSoft, ColorToken.Accent)
-        }
-    }
-
     private fun navDestination(mark: String, label: String, selected: Boolean, action: () -> Unit): View {
         val fill = if (selected) ColorToken.PrimarySoft else ColorToken.Card
         val stroke = if (selected) ColorToken.Primary else ColorToken.Border
@@ -798,6 +790,18 @@ class MainActivity : Activity() {
         })
         box.addView(ui.label(label, 12, if (selected) ColorToken.Ink else ColorToken.Muted, true).apply {
             gravity = Gravity.CENTER
+            setPadding(0, ui.dp(4), 0, 0)
+        })
+        return box
+    }
+
+    private fun heroStat(label: String, value: String): View {
+        val box = ui.container("#214258", "#365C73").apply {
+            setPadding(ui.dp(12), ui.dp(12), ui.dp(12), ui.dp(12))
+            elevation = 0f
+        }
+        box.addView(ui.label(label, 12, "#C7DAD6", true))
+        box.addView(ui.label(value, 16, "#FFFFFF", true).apply {
             setPadding(0, ui.dp(4), 0, 0)
         })
         return box
