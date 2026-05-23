@@ -100,8 +100,43 @@ class PrototypeStateStore(context: Context) {
         database.addCollaborationNote(note)
     }
 
+    fun addCollaborationNotes(notes: List<CollaborationNote>) {
+        notes.forEach { database.addCollaborationNote(it) }
+    }
+
+    fun addUniqueCollaborationNotes(notes: List<CollaborationNote>): Int {
+        val existingKeys = database.loadCollaborationNotes(200)
+            .map { it.collaborationKey() }
+            .toMutableSet()
+        var importedCount = 0
+        notes.forEach { note ->
+            val key = note.collaborationKey()
+            if (!existingKeys.contains(key)) {
+                database.addCollaborationNote(note)
+                existingKeys.add(key)
+                importedCount += 1
+            }
+        }
+        return importedCount
+    }
+
     fun collaborationNotes(limit: Int = 12): List<CollaborationNote> {
         return database.loadCollaborationNotes(limit)
+    }
+
+    fun collaborationPayload(classCode: String): JSONObject {
+        return JSONObject()
+            .put("classCode", classCode)
+            .put("exportedAt", System.currentTimeMillis())
+            .put("collaborationNotes", JSONArray(database.loadCollaborationNotes(30).map { note ->
+                JSONObject()
+                    .put("actor", note.actor)
+                    .put("role", note.role)
+                    .put("target", note.target)
+                    .put("note", note.note)
+                    .put("status", note.status)
+                    .put("createdAt", note.createdAt)
+            }))
     }
 
     fun addOfflineSyncItem(item: OfflineSyncItem) {
@@ -220,5 +255,9 @@ class PrototypeStateStore(context: Context) {
             repairedMistakeCount = prefs.getInt("repairedMistakeCount", 0),
             customTaskCount = prefs.getInt("customTaskCount", 0)
         )
+    }
+
+    private fun CollaborationNote.collaborationKey(): String {
+        return listOf(actor, role, target, note, status, createdAt.toString()).joinToString("|")
     }
 }

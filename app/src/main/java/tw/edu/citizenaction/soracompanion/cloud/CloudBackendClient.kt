@@ -14,6 +14,38 @@ data class CloudSyncResult(
 
 class CloudBackendClient(private val endpoint: String) {
     fun sync(payload: JSONObject): CloudSyncResult {
+        return post(payload)
+    }
+
+    fun fetchCollaboration(classCode: String, since: Long): JSONObject {
+        val body = JSONObject()
+            .put("action", "fetchCollaboration")
+            .put("type", "collaboration_feed")
+            .put("schemaVersion", 1)
+            .put("classCode", classCode)
+            .put("since", since)
+            .put("app", "English+")
+        val result = post(body)
+        val responseText = result.responseText.trim()
+        return when {
+            responseText.isBlank() -> JSONObject().put("collaborationNotes", emptyList<String>())
+            responseText.startsWith("[") -> JSONObject().put("collaborationNotes", org.json.JSONArray(responseText))
+            else -> JSONObject(responseText)
+        }
+    }
+
+    fun pushCollaboration(payload: JSONObject): CloudSyncResult {
+        return post(
+            JSONObject()
+                .put("action", "pushCollaboration")
+                .put("type", "collaboration_push")
+                .put("schemaVersion", 1)
+                .put("app", "English+")
+                .put("payload", payload)
+        )
+    }
+
+    private fun post(payload: JSONObject): CloudSyncResult {
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15_000

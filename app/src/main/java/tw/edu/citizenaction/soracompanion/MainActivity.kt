@@ -11,6 +11,8 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
 import java.io.File
+import org.json.JSONArray
+import org.json.JSONObject
 import tw.edu.citizenaction.soracompanion.ai.AiSupportResult
 import tw.edu.citizenaction.soracompanion.ai.OpenAiClient
 import tw.edu.citizenaction.soracompanion.auth.AuthClient
@@ -597,6 +599,7 @@ class MainActivity : Activity() {
         root.addView(card("斷點摘要", "${breakpoints.first().title}\n證據：${breakpoints.first().evidence}\nAI 已做：${breakpoints.first().aiAction}", ColorToken.WarningSoft))
         root.addView(card("建議陪伴語", "你願意回來做修復任務已經很好。今天我們只看一個規則，先不追完整進度。", ColorToken.SuccessSoft))
         root.addView(card("協作狀態", "志工回覆：${mentorReplyCount} 則\n協作紀錄：${collaborationNotes.size} 筆\n待同步：${offlinePendingCount} 件", ColorToken.Card))
+        root.addView(remoteCollaborationStatusCard())
         recentCollaborationNotes(3).forEach { root.addView(collaborationNoteCard(it)) }
         root.addView(ui.secondaryButton("志工回覆並寫入接力紀錄") {
             mentorReplyCount += 1
@@ -772,6 +775,7 @@ class MainActivity : Activity() {
         screen = Screen.Mentor
         shell("接力優先序", "把有限的真人時間安排到最需要的地方")
         root.addView(card("排序規則", "高風險情緒斷點 > 連續錯題 > 重複退出 > 一般複習。AI 可處理低風險，真人處理高價值斷點。", ColorToken.PrimarySoft))
+        root.addView(remoteCollaborationStatusCard())
         handoffPriorities.forEach { root.addView(priorityCard(it)) }
         section("最新協作紀錄")
         recentCollaborationNotes(4).forEach { root.addView(collaborationNoteCard(it)) }
@@ -789,6 +793,7 @@ class MainActivity : Activity() {
             Metric("協作", "${collaborationNotes.size} 筆", ColorToken.Primary)
         ))
         root.addView(card("設計目的", "老師端不只要看到學生問題，也要知道誰負責、多久內處理、下一步做什麼。這可以降低真人接力的溝通成本。", ColorToken.PrimarySoft))
+        root.addView(remoteCollaborationStatusCard())
         teacherActions.forEach { root.addView(teacherActionCard(it)) }
         root.addView(ui.primaryButton("標記一件待辦已處理") {
             actionDoneCount = (actionDoneCount + 1).coerceAtMost(teacherActions.size)
@@ -802,6 +807,56 @@ class MainActivity : Activity() {
             renderActionQueue()
         })
         root.addView(ui.primaryButton("查看接力優先序") { renderHandoffBoard() })
+        bottomNav()
+    }
+
+    private fun renderRemoteCollaborationSync(pushFirst: Boolean) {
+        screen = Screen.ActionQueue
+        if (!stateStore.hasCloudBackend()) {
+            shell("尚未設定協作後端", "多人協作需要先在同步中心設定雲端端點")
+            root.addView(card("目前狀態", "沒有後端 URL 時，協作紀錄只會保存在本機 SQLite。", ColorToken.WarningSoft))
+            root.addView(ui.primaryButton("前往同步中心設定") { renderSyncCenter() })
+            root.addView(ui.secondaryButton("回接力優先序") { renderHandoffBoard() })
+            bottomNav()
+            return
+        }
+
+        shell("同步多人協作", if (pushFirst) "先推送本機協作，再拉取遠端更新" else "正在拉取遠端協作紀錄")
+        root.addView(card("協作後端", stateStore.cloudBackendUrl(), ColorToken.PrimarySoft))
+        root.addView(card("同步班級", currentAccount().classCode, ColorToken.Card))
+        bottomNav()
+
+        Thread {
+            try {
+                val client = CloudBackendClient(stateStore.cloudBackendUrl())
+                if (pushFirst) {
+                    client.pushCollaboration(stateStore.collaborationPayload(currentAccount().classCode))
+                }
+                val response = client.fetchCollaboration(currentAccount().classCode, 0L)
+                val imported = importRemoteCollaborationNotes(response)
+                runOnUiThread { renderRemoteCollaborationResult(imported) }
+            } catch (error: Exception) {
+                runOnUiThread { renderRemoteCollaborationFailure(error.message ?: "未知錯誤") }
+            }
+        }.start()
+    }
+
+    private fun renderRemoteCollaborationResult(importedCount: Int) {
+        collaborationNotes = stateStore.collaborationNotes()
+        recordLearningEvent("collaboration_sync", "多人協作同步完成", "匯入 $importedCount 筆遠端協作紀錄。")
+        shell("多人協作同步完成", "已更新老師/志工接力紀錄")
+        root.addView(card("同步結果", "匯入遠端協作紀錄：$importedCount 筆\n目前本機協作紀錄：${collaborationNotes.size} 筆", ColorToken.SuccessSoft))
+        recentCollaborationNotes(5).forEach { root.addView(collaborationNoteCard(it)) }
+        root.addView(ui.primaryButton("回接力優先序") { renderHandoffBoard() })
+        bottomNav()
+    }
+
+    private fun renderRemoteCollaborationFailure(message: String) {
+        recordLearningEvent("collaboration_sync_failed", "多人協作同步失敗", message)
+        shell("多人協作同步失敗", "本機協作資料已保留")
+        root.addView(card("錯誤訊息", message, ColorToken.WarningSoft))
+        root.addView(card("備援策略", "協作同步失敗時，老師與志工仍可先用本機紀錄展示流程；等網路或後端恢復後再同步。", ColorToken.Card))
+        root.addView(ui.primaryButton("回接力優先序") { renderHandoffBoard() })
         bottomNav()
     }
 
@@ -1741,6 +1796,56 @@ class MainActivity : Activity() {
                 status = "待建立"
             )
         )
+    }
+
+    private fun remoteCollaborationStatusCard(): View {
+        val hasBackend = stateStore.hasCloudBackend()
+        val box = ui.container(if (hasBackend) ColorToken.SuccessSoft else ColorToken.WarningSoft, ColorToken.Border)
+        box.addView(ui.statusPill(if (hasBackend) "多人協作可同步" else "本機協作模式", if (hasBackend) ColorToken.Success else ColorToken.Warning))
+        box.addView(ui.label(if (hasBackend) "老師/志工紀錄可推送與拉取" else "尚未設定協作後端", 18, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body(
+            if (hasBackend) {
+                "目前使用同步中心的雲端端點：${stateStore.cloudBackendUrl()}\n可推送本機協作並拉取遠端協作 feed。"
+            } else {
+                "先到同步中心貼上後端 URL，才能讓老師與志工跨裝置看到彼此的協作紀錄。"
+            },
+            "#334155"
+        ))
+        box.addView(ui.primaryButton(if (hasBackend) "推送並拉取協作紀錄" else "前往同步中心設定") {
+            if (hasBackend) renderRemoteCollaborationSync(pushFirst = true) else renderSyncCenter()
+        })
+        box.addView(ui.secondaryButton("只拉取遠端協作") {
+            renderRemoteCollaborationSync(pushFirst = false)
+        })
+        return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun importRemoteCollaborationNotes(response: JSONObject): Int {
+        val notes = response.optJSONArray("collaborationNotes")
+            ?: response.optJSONArray("notes")
+            ?: response.optJSONObject("payload")?.optJSONArray("collaborationNotes")
+            ?: JSONArray()
+        val imported = mutableListOf<CollaborationNote>()
+        for (index in 0 until notes.length()) {
+            val item = notes.optJSONObject(index) ?: continue
+            imported.add(
+                CollaborationNote(
+                    actor = item.optString("actor", "遠端使用者"),
+                    role = item.optString("role", item.optString("roleLabel", "協作者")),
+                    target = item.optString("target", currentAccount().classCode),
+                    note = item.optString("note", item.optString("content", "遠端協作紀錄")),
+                    status = item.optString("status", "遠端同步"),
+                    createdAt = item.optLong("createdAt", System.currentTimeMillis())
+                )
+            )
+        }
+        val importedCount = stateStore.addUniqueCollaborationNotes(imported)
+        if (importedCount > 0) {
+            addOfflineSyncItem("遠端協作匯入", "多人協作", "已匯入 ${imported.size} 筆遠端老師/志工紀錄。", "已同步")
+        }
+        return importedCount
     }
 
     private fun collaborationNoteCard(note: CollaborationNote): View {
