@@ -8,6 +8,7 @@ import tw.edu.citizenaction.soracompanion.model.AppState
 import tw.edu.citizenaction.soracompanion.model.CollaborationNote
 import tw.edu.citizenaction.soracompanion.model.LocalAccount
 import tw.edu.citizenaction.soracompanion.model.Mood
+import tw.edu.citizenaction.soracompanion.model.OfflineSyncItem
 
 data class LearningEvent(
     val type: String,
@@ -20,7 +21,9 @@ data class StorageSnapshot(
     val stateSaved: Boolean,
     val eventCount: Int,
     val latestEventTitle: String,
-    val collaborationCount: Int = 0
+    val collaborationCount: Int = 0,
+    val pendingSyncCount: Int = 0,
+    val downloadedPackCount: Int = 0
 )
 
 class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VERSION) {
@@ -59,6 +62,7 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
         )
         createLocalAccountsTable(db)
         createCollaborationNotesTable(db)
+        createOfflineSyncItemsTable(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -80,6 +84,9 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
         }
         if (oldVersion < 4) {
             createCollaborationNotesTable(db)
+        }
+        if (oldVersion < 5) {
+            createOfflineSyncItemsTable(db)
         }
     }
 
@@ -108,6 +115,21 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
                 note TEXT NOT NULL,
                 status TEXT NOT NULL,
                 created_at INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+    }
+
+    private fun createOfflineSyncItemsTable(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS offline_sync_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                category TEXT NOT NULL,
+                detail TEXT NOT NULL,
+                status TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
             )
             """.trimIndent()
         )
@@ -263,6 +285,72 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
         }
     }
 
+    fun addOfflineSyncItem(item: OfflineSyncItem) {
+        val values = ContentValues().apply {
+            put("title", item.title)
+            put("category", item.category)
+            put("detail", item.detail)
+            put("status", item.status)
+            put("updated_at", item.updatedAt)
+        }
+        writableDatabase.insert("offline_sync_items", null, values)
+    }
+
+    fun loadOfflineSyncItems(limit: Int = 16): List<OfflineSyncItem> {
+        return readableDatabase.query(
+            "offline_sync_items",
+            arrayOf("title", "category", "detail", "status", "updated_at"),
+            null,
+            null,
+            null,
+            null,
+            "updated_at DESC, id DESC",
+            limit.toString()
+        ).use { cursor ->
+            val items = mutableListOf<OfflineSyncItem>()
+            while (cursor.moveToNext()) {
+                items.add(
+                    OfflineSyncItem(
+                        title = cursor.getString(cursor.getColumnIndexOrThrow("title")),
+                        category = cursor.getString(cursor.getColumnIndexOrThrow("category")),
+                        detail = cursor.getString(cursor.getColumnIndexOrThrow("detail")),
+                        status = cursor.getString(cursor.getColumnIndexOrThrow("status")),
+                        updatedAt = cursor.getLong(cursor.getColumnIndexOrThrow("updated_at"))
+                    )
+                )
+            }
+            items
+        }
+    }
+
+    fun markOfflineSyncItemsSynced() {
+        val values = ContentValues().apply {
+            put("status", "已同步")
+            put("updated_at", System.currentTimeMillis())
+        }
+        writableDatabase.update("offline_sync_items", values, "status != ?", arrayOf("已下載"))
+    }
+
+    fun pendingSyncCount(): Int {
+        return readableDatabase.rawQuery(
+            "SELECT COUNT(*) FROM offline_sync_items WHERE status != ? AND status != ?",
+            arrayOf("已同步", "已下載")
+        ).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getInt(0) else 0
+        }
+    }
+
+    fun downloadedPackTitles(): Set<String> {
+        return readableDatabase.rawQuery(
+            "SELECT DISTINCT title FROM offline_sync_items WHERE category = ? AND status = ?",
+            arrayOf("離線任務包", "已下載")
+        ).use { cursor ->
+            val titles = mutableSetOf<String>()
+            while (cursor.moveToNext()) titles.add(cursor.getString(0))
+            titles
+        }
+    }
+
     private fun accountCount(): Int {
         return readableDatabase.rawQuery("SELECT COUNT(*) FROM local_accounts", null).use { cursor ->
             if (cursor.moveToFirst()) cursor.getInt(0) else 0
@@ -283,11 +371,13 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
         val collaborationCount = readableDatabase.rawQuery("SELECT COUNT(*) FROM collaboration_notes", null).use { cursor ->
             if (cursor.moveToFirst()) cursor.getInt(0) else 0
         }
-        return StorageSnapshot(stateSaved, eventCount, latest, collaborationCount)
+        val pendingSyncCount = pendingSyncCount()
+        val downloadedPackCount = downloadedPackTitles().size
+        return StorageSnapshot(stateSaved, eventCount, latest, collaborationCount, pendingSyncCount, downloadedPackCount)
     }
 
     companion object {
         private const val DB_NAME = "english_plus_local.db"
-        private const val DB_VERSION = 4
+        private const val DB_VERSION = 5
     }
 }

@@ -189,6 +189,14 @@ data class SyncRecord(
     val detail: String
 )
 
+data class OfflineSyncItem(
+    val title: String,
+    val category: String,
+    val detail: String,
+    val status: String,
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
 data class LocalAccount(
     val displayName: String,
     val roleLabel: String,

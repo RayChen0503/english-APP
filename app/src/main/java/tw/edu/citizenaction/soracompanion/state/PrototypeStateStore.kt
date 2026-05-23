@@ -5,6 +5,7 @@ import tw.edu.citizenaction.soracompanion.model.AppState
 import tw.edu.citizenaction.soracompanion.model.CollaborationNote
 import tw.edu.citizenaction.soracompanion.model.LocalAccount
 import tw.edu.citizenaction.soracompanion.model.Mood
+import tw.edu.citizenaction.soracompanion.model.OfflineSyncItem
 import tw.edu.citizenaction.soracompanion.storage.EnglishPlusDatabase
 import tw.edu.citizenaction.soracompanion.storage.LearningEvent
 import tw.edu.citizenaction.soracompanion.storage.StorageSnapshot
@@ -50,6 +51,22 @@ class PrototypeStateStore(context: Context) {
     fun collaborationNotes(limit: Int = 12): List<CollaborationNote> {
         return database.loadCollaborationNotes(limit)
     }
+
+    fun addOfflineSyncItem(item: OfflineSyncItem) {
+        database.addOfflineSyncItem(item)
+    }
+
+    fun offlineSyncItems(limit: Int = 16): List<OfflineSyncItem> {
+        return database.loadOfflineSyncItems(limit)
+    }
+
+    fun markOfflineSyncItemsSynced() {
+        database.markOfflineSyncItemsSynced()
+    }
+
+    fun pendingSyncCount(): Int = database.pendingSyncCount()
+
+    fun downloadedPackTitles(): Set<String> = database.downloadedPackTitles()
 
     fun saveOpenAiApiKey(apiKey: String) {
         prefs.edit().putString("openai_api_key", apiKey.trim()).apply()

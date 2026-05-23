@@ -29,6 +29,7 @@ import tw.edu.citizenaction.soracompanion.model.MistakeRecord
 import tw.edu.citizenaction.soracompanion.model.MentorCheck
 import tw.edu.citizenaction.soracompanion.model.Mood
 import tw.edu.citizenaction.soracompanion.model.OfflinePack
+import tw.edu.citizenaction.soracompanion.model.OfflineSyncItem
 import tw.edu.citizenaction.soracompanion.model.HandoffPriority
 import tw.edu.citizenaction.soracompanion.model.HelpRequestOption
 import tw.edu.citizenaction.soracompanion.model.Question
@@ -91,6 +92,8 @@ class MainActivity : Activity() {
     private val aiScenarios = PrototypeRepository.aiScenarios
     private val breakpoints: MutableList<Breakpoint> = PrototypeRepository.initialBreakpoints()
     private var collaborationNotes: List<CollaborationNote> = emptyList()
+    private var offlineSyncItems: List<OfflineSyncItem> = emptyList()
+    private var downloadedPackTitles: Set<String> = emptySet()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -117,6 +120,7 @@ class MainActivity : Activity() {
         repairedMistakeCount = saved.repairedMistakeCount
         customTaskCount = saved.customTaskCount
         collaborationNotes = stateStore.collaborationNotes()
+        refreshOfflineSyncState()
     }
 
     private fun persistState() {
@@ -138,10 +142,30 @@ class MainActivity : Activity() {
             )
         )
         collaborationNotes = stateStore.collaborationNotes()
+        stateStore.addOfflineSyncItem(
+            OfflineSyncItem(
+                title = "協作紀錄：$target",
+                category = "真人接力",
+                detail = note,
+                status = "待上傳"
+            )
+        )
+        refreshOfflineSyncState()
         learningEventCount += 1
-        offlinePendingCount += 1
         recordLearningEvent("collaboration", "$actor 更新 $target", note)
         persistState()
+    }
+
+    private fun addOfflineSyncItem(title: String, category: String, detail: String, status: String = "待上傳") {
+        stateStore.addOfflineSyncItem(OfflineSyncItem(title, category, detail, status))
+        refreshOfflineSyncState()
+        persistState()
+    }
+
+    private fun refreshOfflineSyncState() {
+        offlineSyncItems = stateStore.offlineSyncItems()
+        downloadedPackTitles = stateStore.downloadedPackTitles()
+        offlinePendingCount = stateStore.pendingSyncCount()
     }
 
     private fun accountList(): List<LocalAccount> = stateStore.localAccounts(defaultAccounts)
@@ -320,7 +344,7 @@ class MainActivity : Activity() {
         }
         root.addView(ui.secondaryButton("新增一個低壓自訂任務") {
             customTaskCount += 1
-            offlinePendingCount += 1
+            addOfflineSyncItem("老師新增低壓任務", "任務設定", "新增 1 個志工接力低壓任務，待同步到老師端。")
             persistState()
             renderTaskQueue()
         })
@@ -392,10 +416,10 @@ class MainActivity : Activity() {
             confidence = (confidence + 4).coerceAtMost(100)
             learningEventCount += 1
             if (wrongAttempts > 0) repairedMistakeCount += 1
-            offlinePendingCount += 1
             wrongAttempts = 0
             lastAnswerMessage = "答對了：${q.explanation}"
             currentQuestionIndex = (currentQuestionIndex + 1) % questions.size
+            addOfflineSyncItem("答題完成：${q.concept}", "學習事件", q.explanation)
             persistState()
             recordLearningEvent("answer_correct", "完成微任務：${q.concept}", q.explanation)
             renderSuccess(q)
@@ -403,8 +427,8 @@ class MainActivity : Activity() {
             wrongAttempts += 1
             confidence = (confidence - 1).coerceAtLeast(0)
             learningEventCount += 1
-            offlinePendingCount += 1
             lastAnswerMessage = "你選了 $option。${q.explanation}"
+            addOfflineSyncItem("答題卡住：${q.concept}", "學習事件", "學生選擇 $option，需要保留修復提示。")
             persistState()
             recordLearningEvent("answer_wrong", "答題卡住：${q.concept}", "學生選擇 $option；平台保留修復提示與支持出口。")
             if (wrongAttempts >= 3) {
@@ -441,7 +465,7 @@ class MainActivity : Activity() {
         confidence = (confidence + prompt.confidenceDelta).coerceIn(0, 100)
         lastAnswerMessage = prompt.platformResponse
         learningEventCount += 1
-        offlinePendingCount += 1
+        addOfflineSyncItem("課後反思：${prompt.title}", "反思紀錄", prompt.studentChoice)
         persistState()
         recordLearningEvent("reflection", prompt.title, prompt.studentChoice)
         renderReflectionSaved(prompt)
@@ -556,13 +580,25 @@ class MainActivity : Activity() {
     private fun renderOfflinePacks() {
         screen = Screen.Map
         shell("離線任務包", "降低家庭網路與碎片時間限制")
+        refreshOfflineSyncState()
         root.addView(card("設計原因", "偏鄉學生不一定有穩定網路或完整一小時。任務包以 3-8 分鐘為單位，先下載、可離線練習。", ColorToken.PrimarySoft))
+        root.addView(metricRow(
+            Metric("可下載", "${offlinePacks.size} 包", ColorToken.Primary),
+            Metric("已下載", "${downloadedPackTitles.size} 包", ColorToken.Success),
+            Metric("待補傳", "${offlinePendingCount} 件", if (offlinePendingCount > 0) ColorToken.Warning else ColorToken.Success)
+        ))
         offlinePacks.forEach { root.addView(offlinePackCard(it)) }
         section("同步狀態")
-        syncRecords.forEach { root.addView(syncCard(it)) }
-        root.addView(ui.primaryButton("模擬同步待上傳紀錄") {
-            offlinePendingCount = (offlinePendingCount - 1).coerceAtLeast(0)
-            persistState()
+        offlineSyncItems.take(4).ifEmpty {
+            syncRecords.map { OfflineSyncItem(it.title, "展示同步", it.detail, it.status) }
+        }.forEach { root.addView(offlineSyncItemCard(it)) }
+        root.addView(ui.primaryButton("補傳 1 筆待同步紀錄") {
+            addOfflineSyncItem(
+                title = "手動補傳檢查",
+                category = "同步測試",
+                detail = "模擬網路恢復後補傳最新學習紀錄。",
+                status = "已同步"
+            )
             renderSyncCenter()
         })
         root.addView(ui.secondaryButton("查看同步中心") { renderSyncCenter() })
@@ -573,17 +609,21 @@ class MainActivity : Activity() {
     private fun renderSyncCenter() {
         screen = Screen.SyncCenter
         shell("離線同步中心", "模擬網路不穩時的資料保存與補傳")
+        refreshOfflineSyncState()
         root.addView(storageStatusCard())
         root.addView(metricRow(
             Metric("待上傳", "${offlinePendingCount} 件", if (offlinePendingCount > 0) ColorToken.Warning else ColorToken.Success),
-            Metric("任務包", "${offlinePacks.size} 組", ColorToken.Primary),
-            Metric("摘要", "1 份", ColorToken.Success)
+            Metric("已下載", "${downloadedPackTitles.size} 包", ColorToken.Success),
+            Metric("佇列", "${offlineSyncItems.size} 筆", ColorToken.Primary)
         ))
         root.addView(card("同步策略", "學生離線時仍可完成短任務；網路恢復後，微任務、反思、志工接力摘要會補傳。正式版可接 Room/Firebase，目前先用本機狀態模擬。", ColorToken.PrimarySoft))
-        syncRecords.forEach { root.addView(syncCard(it)) }
+        offlineSyncItems.ifEmpty {
+            syncRecords.map { OfflineSyncItem(it.title, "展示同步", it.detail, it.status) }
+        }.forEach { root.addView(offlineSyncItemCard(it)) }
         root.addView(card("本機待同步明細", "學習事件：${learningEventCount} 筆\n志工回覆：${mentorReplyCount} 則\n協作紀錄：${collaborationNotes.size} 筆\n老師新增任務：${customTaskCount} 個", ColorToken.Card))
         root.addView(ui.primaryButton("全部標記為已同步") {
-            offlinePendingCount = 0
+            stateStore.markOfflineSyncItemsSynced()
+            refreshOfflineSyncState()
             persistState()
             recordLearningEvent("sync", "本機紀錄已標記同步", "展示版將待同步數歸零，資料仍保留在 SQLite。")
             renderSyncCenter()
@@ -666,7 +706,7 @@ class MainActivity : Activity() {
         currentRoster().forEach { root.addView(studentRowCard(it)) }
         root.addView(ui.primaryButton("新增 1 位展示學生") {
             managedStudentCount += 1
-            offlinePendingCount += 1
+            addOfflineSyncItem("新增展示學生", "老師端資料", "新增學生後需同步到班級學生名單。")
             persistState()
             renderStudentManager()
         })
@@ -804,8 +844,8 @@ class MainActivity : Activity() {
         root.addView(card("給志工的摘要", aiHandoffSummary(q), ColorToken.Card))
         root.addView(ui.secondaryButton("把這次 AI 摘要存入待辦") {
             actionDoneCount = actionDoneCount.coerceAtMost(teacherActions.size)
-            offlinePendingCount += 1
             learningEventCount += 1
+            addOfflineSyncItem("AI 摘要待辦：${q.concept}", "AI 接力摘要", aiHandoffSummary(q))
             persistState()
             recordLearningEvent("ai_local", "本機 AI 模擬回饋", aiDiagnosis(q))
             renderGeneratedAiFeedback()
@@ -1148,10 +1188,10 @@ class MainActivity : Activity() {
         box.addView(metricRow(
             Metric("狀態", stateText, ColorToken.Success),
             Metric("事件", "${snapshot.eventCount} 筆", ColorToken.Primary),
-            Metric("協作", "${snapshot.collaborationCount} 筆", ColorToken.Primary)
+            Metric("待補傳", "${snapshot.pendingSyncCount} 筆", if (snapshot.pendingSyncCount > 0) ColorToken.Warning else ColorToken.Success)
         ))
-        box.addView(ui.body("最新紀錄：${snapshot.latestEventTitle}", "#334155"))
-        box.addView(ui.body("目前先存在 SQLite；下一輪登入與雲端同步可以接這層資料。", ColorToken.Muted).apply {
+        box.addView(ui.body("最新紀錄：${snapshot.latestEventTitle}\n協作紀錄：${snapshot.collaborationCount} 筆｜離線包：${snapshot.downloadedPackCount} 包", "#334155"))
+        box.addView(ui.body("目前先存在 SQLite；同步中心會把待補傳資料整理成佇列，之後可接 Firebase 或校內後端。", ColorToken.Muted).apply {
             setPadding(0, ui.dp(6), 0, 0)
         })
         return ui.margins(box, 0, 8, 0, 12)
@@ -1405,6 +1445,22 @@ class MainActivity : Activity() {
         return ui.margins(box, 0, 8, 0, 8)
     }
 
+    private fun offlineSyncItemCard(item: OfflineSyncItem): View {
+        val color = when (item.status) {
+            "已同步", "已下載" -> ColorToken.Success
+            "待上傳" -> ColorToken.Warning
+            else -> ColorToken.Primary
+        }
+        val fill = if (item.status == "待上傳") ColorToken.WarningSoft else ColorToken.Card
+        val box = ui.container(fill, ColorToken.Border)
+        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        top.addView(ui.label(item.title, 16, ColorToken.Ink, true), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        top.addView(ui.statusPill(item.status, color))
+        box.addView(top)
+        box.addView(ui.body("${item.category}｜${item.detail}", "#334155").apply { setPadding(0, ui.dp(7), 0, 0) })
+        return ui.margins(box, 0, 8, 0, 8)
+    }
+
     private fun flowStrip(vararg steps: String): View {
         val box = ui.container(ColorToken.PrimarySoft, ColorToken.Border)
         box.addView(ui.label("今日服務路徑", 14, ColorToken.Muted, true))
@@ -1575,13 +1631,26 @@ class MainActivity : Activity() {
     }
 
     private fun offlinePackCard(pack: OfflinePack): View {
-        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        val downloaded = downloadedPackTitles.contains(pack.title)
+        val box = ui.container(if (downloaded) ColorToken.SuccessSoft else ColorToken.Card, ColorToken.Border)
         val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         top.addView(ui.label(pack.title, 16, ColorToken.Ink, true), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        top.addView(ui.statusPill(pack.size, ColorToken.Muted))
+        top.addView(ui.statusPill(if (downloaded) "已下載" else pack.size, if (downloaded) ColorToken.Success else ColorToken.Muted))
         box.addView(top)
         box.addView(ui.body("預估時間：${pack.duration}", ColorToken.Primary))
         box.addView(ui.body(pack.content, "#334155"))
+        box.setOnClickListener {
+            if (!downloadedPackTitles.contains(pack.title)) {
+                addOfflineSyncItem(
+                    title = pack.title,
+                    category = "離線任務包",
+                    detail = "已下載 ${pack.size}，可在網路不穩時完成 ${pack.duration} 任務。",
+                    status = "已下載"
+                )
+                recordLearningEvent("offline_pack", "已下載 ${pack.title}", pack.content)
+                renderOfflinePacks()
+            }
+        }
         return ui.margins(box, 0, 8, 0, 8)
     }
 
