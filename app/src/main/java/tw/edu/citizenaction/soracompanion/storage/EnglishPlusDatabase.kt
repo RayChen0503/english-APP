@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import tw.edu.citizenaction.soracompanion.model.AppState
+import tw.edu.citizenaction.soracompanion.model.CollaborationNote
 import tw.edu.citizenaction.soracompanion.model.LocalAccount
 import tw.edu.citizenaction.soracompanion.model.Mood
 
@@ -18,7 +19,8 @@ data class LearningEvent(
 data class StorageSnapshot(
     val stateSaved: Boolean,
     val eventCount: Int,
-    val latestEventTitle: String
+    val latestEventTitle: String,
+    val collaborationCount: Int = 0
 )
 
 class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VERSION) {
@@ -56,6 +58,7 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
             """.trimIndent()
         )
         createLocalAccountsTable(db)
+        createCollaborationNotesTable(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -75,6 +78,9 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
         if (oldVersion < 3) {
             createLocalAccountsTable(db)
         }
+        if (oldVersion < 4) {
+            createCollaborationNotesTable(db)
+        }
     }
 
     private fun createLocalAccountsTable(db: SQLiteDatabase) {
@@ -86,6 +92,22 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
                 class_code TEXT NOT NULL,
                 login_state TEXT NOT NULL,
                 last_used_at INTEGER NOT NULL DEFAULT 0
+            )
+            """.trimIndent()
+        )
+    }
+
+    private fun createCollaborationNotesTable(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS collaboration_notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                actor TEXT NOT NULL,
+                role TEXT NOT NULL,
+                target TEXT NOT NULL,
+                note TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at INTEGER NOT NULL
             )
             """.trimIndent()
         )
@@ -201,6 +223,46 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
         writableDatabase.update("local_accounts", values, "display_name = ?", arrayOf(displayName))
     }
 
+    fun addCollaborationNote(note: CollaborationNote) {
+        val values = ContentValues().apply {
+            put("actor", note.actor)
+            put("role", note.role)
+            put("target", note.target)
+            put("note", note.note)
+            put("status", note.status)
+            put("created_at", note.createdAt)
+        }
+        writableDatabase.insert("collaboration_notes", null, values)
+    }
+
+    fun loadCollaborationNotes(limit: Int = 12): List<CollaborationNote> {
+        return readableDatabase.query(
+            "collaboration_notes",
+            arrayOf("actor", "role", "target", "note", "status", "created_at"),
+            null,
+            null,
+            null,
+            null,
+            "created_at DESC, id DESC",
+            limit.toString()
+        ).use { cursor ->
+            val notes = mutableListOf<CollaborationNote>()
+            while (cursor.moveToNext()) {
+                notes.add(
+                    CollaborationNote(
+                        actor = cursor.getString(cursor.getColumnIndexOrThrow("actor")),
+                        role = cursor.getString(cursor.getColumnIndexOrThrow("role")),
+                        target = cursor.getString(cursor.getColumnIndexOrThrow("target")),
+                        note = cursor.getString(cursor.getColumnIndexOrThrow("note")),
+                        status = cursor.getString(cursor.getColumnIndexOrThrow("status")),
+                        createdAt = cursor.getLong(cursor.getColumnIndexOrThrow("created_at"))
+                    )
+                )
+            }
+            notes
+        }
+    }
+
     private fun accountCount(): Int {
         return readableDatabase.rawQuery("SELECT COUNT(*) FROM local_accounts", null).use { cursor ->
             if (cursor.moveToFirst()) cursor.getInt(0) else 0
@@ -218,11 +280,14 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
         ).use { cursor ->
             if (cursor.moveToFirst()) cursor.getString(0) else "尚未寫入事件"
         }
-        return StorageSnapshot(stateSaved, eventCount, latest)
+        val collaborationCount = readableDatabase.rawQuery("SELECT COUNT(*) FROM collaboration_notes", null).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getInt(0) else 0
+        }
+        return StorageSnapshot(stateSaved, eventCount, latest, collaborationCount)
     }
 
     companion object {
         private const val DB_NAME = "english_plus_local.db"
-        private const val DB_VERSION = 3
+        private const val DB_VERSION = 4
     }
 }

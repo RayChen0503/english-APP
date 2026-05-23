@@ -17,6 +17,7 @@ import tw.edu.citizenaction.soracompanion.model.ActionItem
 import tw.edu.citizenaction.soracompanion.model.AiScenario
 import tw.edu.citizenaction.soracompanion.model.AppState
 import tw.edu.citizenaction.soracompanion.model.Breakpoint
+import tw.edu.citizenaction.soracompanion.model.CollaborationNote
 import tw.edu.citizenaction.soracompanion.model.DesignPrinciple
 import tw.edu.citizenaction.soracompanion.model.InterventionStep
 import tw.edu.citizenaction.soracompanion.model.JourneyStep
@@ -89,6 +90,7 @@ class MainActivity : Activity() {
     private val defaultAccounts = PrototypeRepository.localAccounts
     private val aiScenarios = PrototypeRepository.aiScenarios
     private val breakpoints: MutableList<Breakpoint> = PrototypeRepository.initialBreakpoints()
+    private var collaborationNotes: List<CollaborationNote> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -114,6 +116,7 @@ class MainActivity : Activity() {
         learningEventCount = saved.learningEventCount
         repairedMistakeCount = saved.repairedMistakeCount
         customTaskCount = saved.customTaskCount
+        collaborationNotes = stateStore.collaborationNotes()
     }
 
     private fun persistState() {
@@ -122,6 +125,23 @@ class MainActivity : Activity() {
 
     private fun recordLearningEvent(type: String, title: String, detail: String) {
         stateStore.recordEvent(type, title, detail)
+    }
+
+    private fun addCollaborationNote(actor: String, roleLabel: String, target: String, note: String, status: String) {
+        stateStore.addCollaborationNote(
+            CollaborationNote(
+                actor = actor,
+                role = roleLabel,
+                target = target,
+                note = note,
+                status = status
+            )
+        )
+        collaborationNotes = stateStore.collaborationNotes()
+        learningEventCount += 1
+        offlinePendingCount += 1
+        recordLearningEvent("collaboration", "$actor 更新 $target", note)
+        persistState()
     }
 
     private fun accountList(): List<LocalAccount> = stateStore.localAccounts(defaultAccounts)
@@ -496,12 +516,18 @@ class MainActivity : Activity() {
         root.addView(card("學生摘要", "${student.name}｜${student.location}｜${student.goal}\n目前心情：${mood.label}\n今日任務時間：${minutes} 分鐘", ColorToken.PrimarySoft))
         root.addView(card("斷點摘要", "${breakpoints.first().title}\n證據：${breakpoints.first().evidence}\nAI 已做：${breakpoints.first().aiAction}", ColorToken.WarningSoft))
         root.addView(card("建議陪伴語", "你願意回來做修復任務已經很好。今天我們只看一個規則，先不追完整進度。", ColorToken.SuccessSoft))
-        root.addView(card("志工回覆狀態", "目前已有 ${mentorReplyCount} 則回覆。回覆會回寫老師端待辦與學生週報。", ColorToken.Card))
-        root.addView(ui.secondaryButton("新增一則志工回覆") {
+        root.addView(card("協作狀態", "志工回覆：${mentorReplyCount} 則\n協作紀錄：${collaborationNotes.size} 筆\n待同步：${offlinePendingCount} 件", ColorToken.Card))
+        recentCollaborationNotes(3).forEach { root.addView(collaborationNoteCard(it)) }
+        root.addView(ui.secondaryButton("志工回覆並寫入接力紀錄") {
             mentorReplyCount += 1
             actionDoneCount = (actionDoneCount + 1).coerceAtMost(teacherActions.size)
-            offlinePendingCount += 1
-            persistState()
+            addCollaborationNote(
+                actor = "Emily",
+                roleLabel = "雲端志工",
+                target = student.name,
+                note = "已回覆學生：先肯定願意回來，再陪練 He is / They are 各 2 題，不追加新作業。",
+                status = "已回覆"
+            )
             renderHandoff()
         })
         root.addView(ui.primaryButton("查看陪伴腳本") { renderMentorScript() })
@@ -555,7 +581,7 @@ class MainActivity : Activity() {
         ))
         root.addView(card("同步策略", "學生離線時仍可完成短任務；網路恢復後，微任務、反思、志工接力摘要會補傳。正式版可接 Room/Firebase，目前先用本機狀態模擬。", ColorToken.PrimarySoft))
         syncRecords.forEach { root.addView(syncCard(it)) }
-        root.addView(card("本機待同步明細", "學習事件：${learningEventCount} 筆\n志工回覆：${mentorReplyCount} 則\n老師新增任務：${customTaskCount} 個", ColorToken.Card))
+        root.addView(card("本機待同步明細", "學習事件：${learningEventCount} 筆\n志工回覆：${mentorReplyCount} 則\n協作紀錄：${collaborationNotes.size} 筆\n老師新增任務：${customTaskCount} 個", ColorToken.Card))
         root.addView(ui.primaryButton("全部標記為已同步") {
             offlinePendingCount = 0
             persistState()
@@ -595,6 +621,8 @@ class MainActivity : Activity() {
         shell("接力優先序", "把有限的真人時間安排到最需要的地方")
         root.addView(card("排序規則", "高風險情緒斷點 > 連續錯題 > 重複退出 > 一般複習。AI 可處理低風險，真人處理高價值斷點。", ColorToken.PrimarySoft))
         handoffPriorities.forEach { root.addView(priorityCard(it)) }
+        section("最新協作紀錄")
+        recentCollaborationNotes(4).forEach { root.addView(collaborationNoteCard(it)) }
         root.addView(ui.secondaryButton("查看待辦處理佇列") { renderActionQueue() })
         root.addView(ui.primaryButton("查看陪伴腳本") { renderMentorScript() })
         bottomNav()
@@ -606,13 +634,19 @@ class MainActivity : Activity() {
         root.addView(metricRow(
             Metric("待辦", "${teacherActions.size} 件", ColorToken.Warning),
             Metric("已處理", "${actionDoneCount} 件", ColorToken.Success),
-            Metric("待同步", "${offlinePendingCount} 件", ColorToken.Primary)
+            Metric("協作", "${collaborationNotes.size} 筆", ColorToken.Primary)
         ))
         root.addView(card("設計目的", "老師端不只要看到學生問題，也要知道誰負責、多久內處理、下一步做什麼。這可以降低真人接力的溝通成本。", ColorToken.PrimarySoft))
         teacherActions.forEach { root.addView(teacherActionCard(it)) }
         root.addView(ui.primaryButton("標記一件待辦已處理") {
             actionDoneCount = (actionDoneCount + 1).coerceAtMost(teacherActions.size)
-            persistState()
+            addCollaborationNote(
+                actor = currentAccount().displayName,
+                roleLabel = currentAccount().roleLabel,
+                target = "待辦處理佇列",
+                note = "已處理 1 件待辦，下一步交由負責人依摘要接力。",
+                status = "已處理"
+            )
             renderActionQueue()
         })
         root.addView(ui.primaryButton("查看接力優先序") { renderHandoffBoard() })
@@ -807,6 +841,17 @@ class MainActivity : Activity() {
         root.addView(card("開場 30 秒", "先肯定：你願意回來做修復任務已經很好。今天我們只看一個規則，不看整章。", ColorToken.SuccessSoft))
         root.addView(card("引導問題", "1. He 是一個人還是很多人？\n2. 一個人通常搭配 is 還是 are？\n3. 你可以自己造一句 He is 嗎？", ColorToken.PrimarySoft))
         root.addView(card("結束紀錄", "能完成 2 題再加 They are；如果仍卡住，記錄為高優先斷點，不追加作業。", ColorToken.WarningSoft))
+        root.addView(ui.secondaryButton("使用腳本並留下志工紀錄") {
+            mentorReplyCount += 1
+            addCollaborationNote(
+                actor = "Emily",
+                roleLabel = "雲端志工",
+                target = student.name,
+                note = "已使用陪伴腳本完成一次低壓接力；學生能先回答 He is，暫不加新題型。",
+                status = "腳本已用"
+            )
+            renderMentorScript()
+        })
         root.addView(ui.primaryButton("回老師工作台") {
             role = Role.Mentor
             renderHome()
@@ -824,7 +869,9 @@ class MainActivity : Activity() {
         ))
         weeklySignals.forEach { root.addView(signalCard(it)) }
         root.addView(card("給學生看的話", "你這週不是沒有進步，而是把問題縮小了。能說出 He is，就是修復英文斷層的一步。", ColorToken.SuccessSoft))
-        root.addView(card("給老師/mentor 的摘要", "學生對完整測驗仍焦慮，但願意完成 3-5 分鐘任務。建議下週維持低壓短任務與志工接力。", ColorToken.PrimarySoft))
+        root.addView(card("給老師/mentor 的摘要", "學生對完整測驗仍焦慮，但願意完成 3-5 分鐘任務。建議下週維持低壓短任務與志工接力。\n\n本週協作紀錄：${collaborationNotes.size} 筆，志工回覆：${mentorReplyCount} 則。", ColorToken.PrimarySoft))
+        section("接力證據")
+        recentCollaborationNotes(4).forEach { root.addView(collaborationNoteCard(it)) }
         root.addView(ui.secondaryButton("查看 OPPM 檢核指標") { renderMentorChecks() })
         bottomNav()
     }
@@ -1101,7 +1148,7 @@ class MainActivity : Activity() {
         box.addView(metricRow(
             Metric("狀態", stateText, ColorToken.Success),
             Metric("事件", "${snapshot.eventCount} 筆", ColorToken.Primary),
-            Metric("同步", "${offlinePendingCount} 待傳", if (offlinePendingCount > 0) ColorToken.Warning else ColorToken.Success)
+            Metric("協作", "${snapshot.collaborationCount} 筆", ColorToken.Primary)
         ))
         box.addView(ui.body("最新紀錄：${snapshot.latestEventTitle}", "#334155"))
         box.addView(ui.body("目前先存在 SQLite；下一輪登入與雲端同步可以接這層資料。", ColorToken.Muted).apply {
@@ -1300,11 +1347,46 @@ class MainActivity : Activity() {
         if (!completed) {
             box.setOnClickListener {
                 actionDoneCount = (index + 1).coerceAtLeast(actionDoneCount + 1).coerceAtMost(teacherActions.size)
-                offlinePendingCount += 1
-                persistState()
+                addCollaborationNote(
+                    actor = action.owner,
+                    roleLabel = "接力負責人",
+                    target = action.title,
+                    note = "已依據證據處理：${action.nextStep}",
+                    status = "待辦已完成"
+                )
                 renderActionQueue()
             }
         }
+        return ui.margins(box, 0, 8, 0, 8)
+    }
+
+    private fun recentCollaborationNotes(limit: Int): List<CollaborationNote> {
+        val notes = collaborationNotes.take(limit)
+        if (notes.isNotEmpty()) return notes
+        return listOf(
+            CollaborationNote(
+                actor = "系統",
+                role = "展示資料",
+                target = student.name,
+                note = "尚未建立真人接力紀錄。可以從雲端志工接力、陪伴腳本或待辦佇列新增。",
+                status = "待建立"
+            )
+        )
+    }
+
+    private fun collaborationNoteCard(note: CollaborationNote): View {
+        val color = when (note.status) {
+            "已回覆", "腳本已用", "待辦已完成" -> ColorToken.Success
+            "已處理" -> ColorToken.Primary
+            else -> ColorToken.Warning
+        }
+        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        top.addView(ui.label(note.actor, 16, ColorToken.Ink, true), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        top.addView(ui.statusPill(note.status, color))
+        box.addView(top)
+        box.addView(ui.body("${note.role}｜對象：${note.target}", ColorToken.Muted).apply { setPadding(0, ui.dp(7), 0, 0) })
+        box.addView(ui.body(note.note, "#334155"))
         return ui.margins(box, 0, 8, 0, 8)
     }
 

@@ -89,6 +89,15 @@ data class SupportMessage(
     val tone: String
 )
 
+data class CollaborationNote(
+    val actor: String,
+    val role: String,
+    val target: String,
+    val note: String,
+    val status: String,
+    val createdAt: Long = System.currentTimeMillis()
+)
+
 data class WeeklySignal(
     val label: String,
     val value: String,

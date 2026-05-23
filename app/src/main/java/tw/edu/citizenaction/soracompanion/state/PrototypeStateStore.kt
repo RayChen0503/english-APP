@@ -2,6 +2,7 @@ package tw.edu.citizenaction.soracompanion.state
 
 import android.content.Context
 import tw.edu.citizenaction.soracompanion.model.AppState
+import tw.edu.citizenaction.soracompanion.model.CollaborationNote
 import tw.edu.citizenaction.soracompanion.model.LocalAccount
 import tw.edu.citizenaction.soracompanion.model.Mood
 import tw.edu.citizenaction.soracompanion.storage.EnglishPlusDatabase
@@ -40,6 +41,14 @@ class PrototypeStateStore(context: Context) {
 
     fun markAccountUsed(displayName: String) {
         database.markAccountUsed(displayName)
+    }
+
+    fun addCollaborationNote(note: CollaborationNote) {
+        database.addCollaborationNote(note)
+    }
+
+    fun collaborationNotes(limit: Int = 12): List<CollaborationNote> {
+        return database.loadCollaborationNotes(limit)
     }
 
     fun saveOpenAiApiKey(apiKey: String) {
