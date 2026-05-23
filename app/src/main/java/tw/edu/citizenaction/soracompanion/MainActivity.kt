@@ -10,6 +10,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
+import java.io.File
 import tw.edu.citizenaction.soracompanion.ai.AiSupportResult
 import tw.edu.citizenaction.soracompanion.ai.OpenAiClient
 import tw.edu.citizenaction.soracompanion.data.PrototypeRepository
@@ -902,17 +903,33 @@ class MainActivity : Activity() {
     private fun renderWeeklyReport() {
         screen = Screen.Report
         shell("本週學習週報", "用進步證據取代排名壓力")
+        refreshOfflineSyncState()
         root.addView(metricRow(
             Metric("微任務", "${completedTasks} 個", ColorToken.Primary),
             Metric("斷點修復", "2 個", ColorToken.Success),
             Metric("求助", "1 次", ColorToken.Warning)
         ))
+        root.addView(reportShowcaseCard())
         weeklySignals.forEach { root.addView(signalCard(it)) }
         root.addView(card("給學生看的話", "你這週不是沒有進步，而是把問題縮小了。能說出 He is，就是修復英文斷層的一步。", ColorToken.SuccessSoft))
         root.addView(card("給老師/mentor 的摘要", "學生對完整測驗仍焦慮，但願意完成 3-5 分鐘任務。建議下週維持低壓短任務與志工接力。\n\n本週協作紀錄：${collaborationNotes.size} 筆，志工回覆：${mentorReplyCount} 則。", ColorToken.PrimarySoft))
         section("接力證據")
         recentCollaborationNotes(4).forEach { root.addView(collaborationNoteCard(it)) }
+        root.addView(ui.primaryButton("匯出展示報告") { renderExportReport() })
         root.addView(ui.secondaryButton("查看 OPPM 檢核指標") { renderMentorChecks() })
+        bottomNav()
+    }
+
+    private fun renderExportReport() {
+        screen = Screen.Report
+        refreshOfflineSyncState()
+        val reportText = buildDemoReportText()
+        val file = writeDemoReport(reportText)
+        shell("展示報告已產生", "把產品原型成果整理成可交給老師/評審的文字摘要")
+        root.addView(card("匯出檔案", file.absolutePath, ColorToken.SuccessSoft))
+        root.addView(card("報告內容預覽", reportText, ColorToken.Card))
+        root.addView(ui.secondaryButton("回本週學習週報") { renderWeeklyReport() })
+        root.addView(ui.primaryButton("查看 OPPM 品質檢核") { renderMentorChecks() })
         bottomNav()
     }
 
@@ -920,9 +937,80 @@ class MainActivity : Activity() {
         screen = Screen.Report
         shell("OPPM 品質檢核", "把原型對齊課程與 mentor 評估")
         root.addView(card("檢核目的", "這頁不是給學生看的，而是給小組、mentor、老師確認產品方向是否符合提案目標。", ColorToken.PrimarySoft))
+        root.addView(reportShowcaseCard())
         mentorChecks.forEach { root.addView(mentorCheckCard(it)) }
-        root.addView(card("下一步", "最需要驗證的是可執行性：志工是否願意使用摘要接力？老師是否覺得斷點紀錄有用？", ColorToken.WarningSoft))
+        root.addView(card("下一步", "目前 1-6 輪功能已形成完整可操作原型。下一階段最需要驗證的是：志工是否願意使用摘要接力、老師是否覺得斷點紀錄有用、學生是否願意在低壓任務中回來。", ColorToken.WarningSoft))
+        root.addView(ui.primaryButton("匯出展示報告") { renderExportReport() })
         bottomNav()
+    }
+
+    private fun reportShowcaseCard(): View {
+        val box = ui.container(ColorToken.PrimarySoft, ColorToken.Border)
+        box.addView(ui.statusPill("v0.6 成果", ColorToken.Primary))
+        box.addView(ui.label("English+ 可操作產品原型", 20, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body(
+            "目前已完成真實資料儲存、本機登入班級、真 AI 串接、老師/志工協作、離線同步與展示報告。展示重點不是題庫量，而是情緒斷點如何被 AI 接住，再交給真人低壓接力。"
+        ))
+        return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun buildDemoReportText(): String {
+        val snapshot = stateStore.storageSnapshot()
+        val latestCollaboration = collaborationNotes.firstOrNull()?.note ?: "尚未建立真人接力紀錄。"
+        val latestSync = offlineSyncItems.firstOrNull()?.let { "${it.title} / ${it.status}" } ?: "尚未建立同步佇列。"
+        return """
+            English+ 偏鄉學生雙軌學習平台展示報告
+
+            一、產品定位
+            English+ 是面向偏鄉國中生的低壓英文學習原型。平台核心不是大量刷題，而是先辨識學生的情緒斷點，把英文任務縮小，再由 AI 與真人志工雙軌接力。
+
+            二、目前可展示功能
+            1. 真實資料儲存：SQLite 已保存 App 狀態、學習事件、帳號、協作紀錄與同步佇列。
+            2. 登入與班級：本機展示帳號可切換學生、志工、老師，保留班級/群組代碼。
+            3. 真 AI 串接：AI 提示實驗室可設定 OpenAI API Key；沒有 Key 或失敗時回到本機模擬。
+            4. 老師/志工協作：志工回覆、陪伴腳本、老師待辦處理會寫入協作紀錄。
+            5. 離線與同步：任務包下載、答題、反思、AI 摘要與協作會進入待同步佇列。
+            6. 報告展示：本頁可輸出給老師/評審看的文字摘要。
+
+            三、本週展示資料
+            學生：${student.name} / ${student.location} / ${student.goal}
+            心情狀態：${mood.label}
+            今日任務時間：${minutes} 分鐘
+            微任務完成：${completedTasks} 個
+            信心值：${confidence}%
+            錯題修復：${repairedMistakeCount} 筆
+            學習事件：${snapshot.eventCount} 筆
+            協作紀錄：${snapshot.collaborationCount} 筆
+            待補傳同步：${snapshot.pendingSyncCount} 筆
+            已下載離線包：${snapshot.downloadedPackCount} 包
+
+            四、情緒斷點處理
+            目前主要斷點：${breakpoints.first().title}
+            斷點證據：${breakpoints.first().evidence}
+            AI 已做處理：${breakpoints.first().aiAction}
+            真人接力建議：${breakpoints.first().mentorAction}
+
+            五、最新接力與同步
+            最新協作：$latestCollaboration
+            最新同步項目：$latestSync
+
+            六、下一階段建議
+            1. 將 SQLite 資料層升級為 Room。
+            2. 用 Firebase 或校內後端做真帳號與雲端同步。
+            3. 將 OpenAI API Key 移到後端代理，不由手機端保存正式 Key。
+            4. 用真實學生訪談驗證：低壓任務、志工摘要、情緒斷點是否真的降低放棄感。
+        """.trimIndent()
+    }
+
+    private fun writeDemoReport(reportText: String): File {
+        val targetDir = getExternalFilesDir(null) ?: filesDir
+        val file = File(targetDir, "english_plus_demo_report.txt")
+        file.writeText(reportText, Charsets.UTF_8)
+        recordLearningEvent("report_export", "已匯出展示報告", file.absolutePath)
+        addOfflineSyncItem("展示報告匯出", "報告資料", "已產生 english_plus_demo_report.txt，待正式版上傳到雲端或分享給老師。")
+        return file
     }
 
     private fun shell(title: String, subtitle: String) {
