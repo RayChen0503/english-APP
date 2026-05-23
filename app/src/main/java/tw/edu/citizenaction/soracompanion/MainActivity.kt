@@ -13,6 +13,8 @@ import android.widget.ScrollView
 import java.io.File
 import tw.edu.citizenaction.soracompanion.ai.AiSupportResult
 import tw.edu.citizenaction.soracompanion.ai.OpenAiClient
+import tw.edu.citizenaction.soracompanion.cloud.CloudBackendClient
+import tw.edu.citizenaction.soracompanion.cloud.CloudSyncResult
 import tw.edu.citizenaction.soracompanion.data.PrototypeRepository
 import tw.edu.citizenaction.soracompanion.model.ActionItem
 import tw.edu.citizenaction.soracompanion.model.AiScenario
@@ -612,6 +614,8 @@ class MainActivity : Activity() {
         shell("離線同步中心", "模擬網路不穩時的資料保存與補傳")
         refreshOfflineSyncState()
         root.addView(storageStatusCard())
+        root.addView(cloudBackendStatusCard())
+        root.addView(cloudBackendSettingsCard())
         root.addView(metricRow(
             Metric("待上傳", "${offlinePendingCount} 件", if (offlinePendingCount > 0) ColorToken.Warning else ColorToken.Success),
             Metric("已下載", "${downloadedPackTitles.size} 包", ColorToken.Success),
@@ -629,6 +633,60 @@ class MainActivity : Activity() {
             recordLearningEvent("sync", "本機紀錄已標記同步", "展示版將待同步數歸零，資料仍保留在 SQLite。")
             renderSyncCenter()
         })
+        root.addView(ui.primaryButton("同步到雲端後端") { renderCloudSyncProgress() })
+        bottomNav()
+    }
+
+    private fun renderCloudSyncProgress() {
+        screen = Screen.SyncCenter
+        val endpoint = stateStore.cloudBackendUrl()
+        if (!stateStore.hasCloudBackend()) {
+            shell("尚未設定雲端後端", "先貼上 Firebase Cloud Function 或校內 API 的 HTTPS URL")
+            root.addView(card("目前狀態", "尚未設定雲端端點，因此資料仍只會保存在本機 SQLite。", ColorToken.WarningSoft))
+            root.addView(cloudBackendSettingsCard())
+            root.addView(ui.secondaryButton("回同步中心") { renderSyncCenter() })
+            bottomNav()
+            return
+        }
+
+        shell("正在同步雲端", "將本機 SQLite 摘要打包成 JSON POST 到後端")
+        root.addView(card("同步端點", endpoint, ColorToken.PrimarySoft))
+        root.addView(card("同步內容", "App 狀態、學習事件、協作紀錄、離線同步佇列會一起送出。", ColorToken.Card))
+        bottomNav()
+
+        Thread {
+            try {
+                val payload = stateStore.cloudSyncPayload(currentAccount().classCode)
+                val result = CloudBackendClient(endpoint).sync(payload)
+                runOnUiThread { renderCloudSyncResult(result) }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    recordLearningEvent("cloud_sync_failed", "雲端同步失敗", error.message ?: "未知錯誤")
+                    renderCloudSyncFailure(error.message ?: "未知錯誤")
+                }
+            }
+        }.start()
+    }
+
+    private fun renderCloudSyncResult(result: CloudSyncResult) {
+        screen = Screen.SyncCenter
+        stateStore.markOfflineSyncItemsSynced()
+        refreshOfflineSyncState()
+        recordLearningEvent("cloud_sync", "雲端後端同步完成", "HTTP ${result.statusCode} / ${result.responseText.take(160)}")
+        persistState()
+        shell("雲端同步完成", "後端已接收 English+ 本機資料摘要")
+        root.addView(card("後端回應", "HTTP ${result.statusCode}\n${result.responseText.ifBlank { "後端未回傳內容" }}", ColorToken.SuccessSoft))
+        root.addView(card("同步後狀態", "待補傳：${offlinePendingCount} 件\n同步佇列：${offlineSyncItems.size} 筆", ColorToken.Card))
+        root.addView(ui.primaryButton("回同步中心") { renderSyncCenter() })
+        bottomNav()
+    }
+
+    private fun renderCloudSyncFailure(message: String) {
+        screen = Screen.SyncCenter
+        shell("雲端同步失敗", "本機資料已保留，可稍後重試")
+        root.addView(card("錯誤訊息", message, ColorToken.WarningSoft))
+        root.addView(card("備援策略", "同步失敗不會清掉本機 SQLite 與待同步佇列。正式版可加入背景重試、登入權杖與失敗通知。", ColorToken.Card))
+        root.addView(ui.primaryButton("回同步中心") { renderSyncCenter() })
         bottomNav()
     }
 
@@ -1281,6 +1339,54 @@ class MainActivity : Activity() {
         box.addView(ui.body("最新紀錄：${snapshot.latestEventTitle}\n協作紀錄：${snapshot.collaborationCount} 筆｜離線包：${snapshot.downloadedPackCount} 包", "#334155"))
         box.addView(ui.body("目前先存在 SQLite；同步中心會把待補傳資料整理成佇列，之後可接 Firebase 或校內後端。", ColorToken.Muted).apply {
             setPadding(0, ui.dp(6), 0, 0)
+        })
+        return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun cloudBackendStatusCard(): View {
+        val hasBackend = stateStore.hasCloudBackend()
+        val box = ui.container(if (hasBackend) ColorToken.SuccessSoft else ColorToken.WarningSoft, ColorToken.Border)
+        box.addView(ui.statusPill(if (hasBackend) "雲端後端已設定" else "尚未接雲端", if (hasBackend) ColorToken.Success else ColorToken.Warning))
+        box.addView(ui.label(if (hasBackend) "可同步到後端 API" else "目前仍是本機 SQLite 模式", 18, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body(
+            if (hasBackend) {
+                "目前端點：${stateStore.cloudBackendUrl()}\n按下同步後會以 JSON POST 傳送本機摘要。"
+            } else {
+                "貼上 Firebase Cloud Function、校內 API 或測試 webhook URL 後，就能把本機資料送到雲端。"
+            },
+            "#334155"
+        ))
+        return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun cloudBackendSettingsCard(): View {
+        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        box.addView(ui.label("雲端後端設定", 18, ColorToken.Ink, true))
+        box.addView(ui.body("支援任何可接收 JSON POST 的 HTTPS/HTTP 端點。Firebase Cloud Functions、學校後端 API、測試 webhook 都可以。"))
+        val input = EditText(this).apply {
+            hint = "https://example.com/api/english-plus/sync"
+            setText(stateStore.cloudBackendUrl())
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+            setSingleLine(true)
+            textSize = 15f
+            setTextColor(Color.parseColor(ColorToken.Ink))
+            setHintTextColor(Color.parseColor(ColorToken.Muted))
+            background = ui.rounded(ColorToken.Surface, ColorToken.Border)
+            setPadding(ui.dp(14), ui.dp(12), ui.dp(14), ui.dp(12))
+            layoutParams = ui.fullWidthParams()
+        }
+        box.addView(input)
+        box.addView(ui.primaryButton("儲存雲端端點") {
+            stateStore.saveCloudBackendUrl(input.text.toString())
+            recordLearningEvent("cloud_backend_config", "已更新雲端後端端點", stateStore.cloudBackendUrl().ifBlank { "已清空" })
+            renderSyncCenter()
+        })
+        box.addView(ui.secondaryButton("清除端點，保留本機模式") {
+            stateStore.saveCloudBackendUrl("")
+            recordLearningEvent("cloud_backend_config", "已清除雲端後端端點", "回到純本機 SQLite 模式。")
+            renderSyncCenter()
         })
         return ui.margins(box, 0, 8, 0, 12)
     }

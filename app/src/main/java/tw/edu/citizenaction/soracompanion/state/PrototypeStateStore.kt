@@ -1,6 +1,8 @@
 package tw.edu.citizenaction.soracompanion.state
 
 import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
 import tw.edu.citizenaction.soracompanion.model.AppState
 import tw.edu.citizenaction.soracompanion.model.CollaborationNote
 import tw.edu.citizenaction.soracompanion.model.LocalAccount
@@ -67,6 +69,76 @@ class PrototypeStateStore(context: Context) {
     fun pendingSyncCount(): Int = database.pendingSyncCount()
 
     fun downloadedPackTitles(): Set<String> = database.downloadedPackTitles()
+
+    fun saveCloudBackendUrl(url: String) {
+        prefs.edit().putString("cloud_backend_url", url.trim()).apply()
+    }
+
+    fun cloudBackendUrl(): String {
+        return prefs.getString("cloud_backend_url", "")?.trim().orEmpty()
+    }
+
+    fun hasCloudBackend(): Boolean {
+        val url = cloudBackendUrl()
+        return url.startsWith("https://") || url.startsWith("http://")
+    }
+
+    fun cloudSyncPayload(deviceLabel: String): JSONObject {
+        val state = load()
+        val snapshot = storageSnapshot()
+        val payload = JSONObject()
+            .put("schemaVersion", 1)
+            .put("app", "English+")
+            .put("deviceLabel", deviceLabel)
+            .put("exportedAt", System.currentTimeMillis())
+            .put(
+                "state",
+                JSONObject()
+                    .put("mood", state.mood.label)
+                    .put("minutes", state.minutes)
+                    .put("confidence", state.confidence)
+                    .put("completedTasks", state.completedTasks)
+                    .put("currentQuestionIndex", state.currentQuestionIndex)
+                    .put("selectedAccountName", state.selectedAccountName)
+                    .put("mentorReplyCount", state.mentorReplyCount)
+                    .put("repairedMistakeCount", state.repairedMistakeCount)
+                    .put("customTaskCount", state.customTaskCount)
+            )
+            .put(
+                "snapshot",
+                JSONObject()
+                    .put("eventCount", snapshot.eventCount)
+                    .put("collaborationCount", snapshot.collaborationCount)
+                    .put("pendingSyncCount", snapshot.pendingSyncCount)
+                    .put("downloadedPackCount", snapshot.downloadedPackCount)
+                    .put("latestEventTitle", snapshot.latestEventTitle)
+            )
+            .put("learningEvents", JSONArray(database.loadLearningEvents().map { event ->
+                JSONObject()
+                    .put("type", event.type)
+                    .put("title", event.title)
+                    .put("detail", event.detail)
+                    .put("createdAt", event.createdAt)
+            }))
+            .put("collaborationNotes", JSONArray(database.loadCollaborationNotes().map { note ->
+                JSONObject()
+                    .put("actor", note.actor)
+                    .put("role", note.role)
+                    .put("target", note.target)
+                    .put("note", note.note)
+                    .put("status", note.status)
+                    .put("createdAt", note.createdAt)
+            }))
+            .put("offlineSyncItems", JSONArray(database.loadOfflineSyncItems().map { item ->
+                JSONObject()
+                    .put("title", item.title)
+                    .put("category", item.category)
+                    .put("detail", item.detail)
+                    .put("status", item.status)
+                    .put("updatedAt", item.updatedAt)
+            }))
+        return payload
+    }
 
     fun saveOpenAiApiKey(apiKey: String) {
         prefs.edit().putString("openai_api_key", apiKey.trim()).apply()

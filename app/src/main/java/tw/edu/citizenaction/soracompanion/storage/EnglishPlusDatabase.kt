@@ -323,6 +323,32 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
         }
     }
 
+    fun loadLearningEvents(limit: Int = 20): List<LearningEvent> {
+        return readableDatabase.query(
+            "learning_events",
+            arrayOf("type", "title", "detail", "created_at"),
+            null,
+            null,
+            null,
+            null,
+            "created_at DESC, id DESC",
+            limit.toString()
+        ).use { cursor ->
+            val events = mutableListOf<LearningEvent>()
+            while (cursor.moveToNext()) {
+                events.add(
+                    LearningEvent(
+                        type = cursor.getString(cursor.getColumnIndexOrThrow("type")),
+                        title = cursor.getString(cursor.getColumnIndexOrThrow("title")),
+                        detail = cursor.getString(cursor.getColumnIndexOrThrow("detail")),
+                        createdAt = cursor.getLong(cursor.getColumnIndexOrThrow("created_at"))
+                    )
+                )
+            }
+            events
+        }
+    }
+
     fun markOfflineSyncItemsSynced() {
         val values = ContentValues().apply {
             put("status", "已同步")

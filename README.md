@@ -73,6 +73,7 @@
 - 老師/志工協作：志工回覆、陪伴腳本使用、老師待辦處理都會寫入 `collaboration_notes`，並出現在接力優先序、週報與同步中心。
 - 離線與同步：下載任務包、答題紀錄、反思、AI 摘要、協作紀錄會寫入 `offline_sync_items`，同步中心可查看佇列並標記已同步。
 - 展示報告：週報頁可整理產品定位、六輪功能、本週展示資料、情緒斷點、接力與同步狀態，並匯出成 app 專屬文字檔。
+- 雲端後端：同步中心可設定 Firebase Cloud Function、校內 API 或測試 webhook URL，將 SQLite 摘要以 JSON POST 到雲端；成功後會標記本機待同步佇列。
 
 ## 專案結構
 
@@ -86,6 +87,7 @@ SoraCompanion/
         model/Models.kt
         state/PrototypeStateStore.kt
         ai/OpenAiClient.kt
+        cloud/CloudBackendClient.kt
         storage/EnglishPlusDatabase.kt
         ui/UiKit.kt
       res/
@@ -104,7 +106,7 @@ SoraCompanion/
 
 ## 下一版建議
 
-- 將目前 SQLite 資料層升級為 Room，並在登入/雲端同步輪接 Firebase。
+- 將目前 SQLite 資料層升級為 Room，並把雲端端點改成正式 Firebase/校內後端服務。
 - 串接 Firebase Auth 或校內帳號，讓本機登入流程升級為正式多人登入。
 - 將 OpenAI API Key 移到後端代理保存，避免正式上線時由手機端直接持有 Key。
 - 補學生端登入、班級代碼與老師端班級管理。
