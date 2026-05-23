@@ -3,11 +3,39 @@ package tw.edu.citizenaction.soracompanion.state
 import android.content.Context
 import tw.edu.citizenaction.soracompanion.model.AppState
 import tw.edu.citizenaction.soracompanion.model.Mood
+import tw.edu.citizenaction.soracompanion.storage.EnglishPlusDatabase
+import tw.edu.citizenaction.soracompanion.storage.LearningEvent
+import tw.edu.citizenaction.soracompanion.storage.StorageSnapshot
 
 class PrototypeStateStore(context: Context) {
     private val prefs = context.getSharedPreferences("sora_companion_state", Context.MODE_PRIVATE)
+    private val database = EnglishPlusDatabase(context.applicationContext)
 
     fun load(): AppState {
+        database.loadState()?.let { return it }
+        val migrated = loadLegacyPrefs()
+        database.saveState(migrated)
+        database.addLearningEvent(
+            LearningEvent(
+                type = "migration",
+                title = "已建立本機資料庫",
+                detail = "從舊版展示狀態建立 English+ SQLite 本機資料。"
+            )
+        )
+        return migrated
+    }
+
+    fun save(state: AppState) {
+        database.saveState(state)
+    }
+
+    fun recordEvent(type: String, title: String, detail: String) {
+        database.addLearningEvent(LearningEvent(type, title, detail))
+    }
+
+    fun storageSnapshot(): StorageSnapshot = database.snapshot()
+
+    private fun loadLegacyPrefs(): AppState {
         val moodName = prefs.getString("mood", Mood.Okay.name) ?: Mood.Okay.name
         val mood = Mood.values().firstOrNull { it.name == moodName } ?: Mood.Okay
         return AppState(
@@ -25,23 +53,5 @@ class PrototypeStateStore(context: Context) {
             repairedMistakeCount = prefs.getInt("repairedMistakeCount", 0),
             customTaskCount = prefs.getInt("customTaskCount", 0)
         )
-    }
-
-    fun save(state: AppState) {
-        prefs.edit()
-            .putString("mood", state.mood.name)
-            .putInt("minutes", state.minutes)
-            .putInt("confidence", state.confidence)
-            .putInt("completedTasks", state.completedTasks)
-            .putInt("currentQuestionIndex", state.currentQuestionIndex)
-            .putInt("actionDoneCount", state.actionDoneCount)
-            .putInt("managedStudentCount", state.managedStudentCount)
-            .putInt("offlinePendingCount", state.offlinePendingCount)
-            .putString("selectedAccountName", state.selectedAccountName)
-            .putInt("mentorReplyCount", state.mentorReplyCount)
-            .putInt("learningEventCount", state.learningEventCount)
-            .putInt("repairedMistakeCount", state.repairedMistakeCount)
-            .putInt("customTaskCount", state.customTaskCount)
-            .apply()
     }
 }

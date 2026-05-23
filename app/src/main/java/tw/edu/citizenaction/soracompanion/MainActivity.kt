@@ -114,6 +114,10 @@ class MainActivity : Activity() {
         stateStore.save(AppState(mood, minutes, confidence, completedTasks, currentQuestionIndex, actionDoneCount, managedStudentCount, offlinePendingCount, selectedAccountName, mentorReplyCount, learningEventCount, repairedMistakeCount, customTaskCount))
     }
 
+    private fun recordLearningEvent(type: String, title: String, detail: String) {
+        stateStore.recordEvent(type, title, detail)
+    }
+
     private fun renderHome() {
         screen = Screen.Home
         shell("English+", "偏鄉學生雙軌學習平台")
@@ -350,6 +354,7 @@ class MainActivity : Activity() {
             lastAnswerMessage = "答對了：${q.explanation}"
             currentQuestionIndex = (currentQuestionIndex + 1) % questions.size
             persistState()
+            recordLearningEvent("answer_correct", "完成微任務：${q.concept}", q.explanation)
             renderSuccess(q)
         } else {
             wrongAttempts += 1
@@ -358,6 +363,7 @@ class MainActivity : Activity() {
             offlinePendingCount += 1
             lastAnswerMessage = "你選了 $option。${q.explanation}"
             persistState()
+            recordLearningEvent("answer_wrong", "答題卡住：${q.concept}", "學生選擇 $option；平台保留修復提示與支持出口。")
             if (wrongAttempts >= 3) {
                 breakpoints.add(0, Breakpoint("今日新斷點：${q.concept}", "高", "同一題連續答錯 3 次", "AI 已停止加題並改派修復任務。", "請志工用同一概念帶 2 題，不追加作業。"))
                 wrongAttempts = 0
@@ -394,6 +400,7 @@ class MainActivity : Activity() {
         learningEventCount += 1
         offlinePendingCount += 1
         persistState()
+        recordLearningEvent("reflection", prompt.title, prompt.studentChoice)
         renderReflectionSaved(prompt)
     }
 
@@ -432,6 +439,7 @@ class MainActivity : Activity() {
 
     private fun handleHelpRequest(option: HelpRequestOption) {
         lastAnswerMessage = option.studentText
+        recordLearningEvent("help_request", option.reason, option.platformAction)
         when (option.route) {
             "AI 先處理" -> renderAiCoach()
             "復原模式" -> {
@@ -481,6 +489,7 @@ class MainActivity : Activity() {
         screen = Screen.Map
         shell("個人化學習地圖", "固定節奏比一次衝刺更重要")
         root.addView(card("本週總覽", "完成微任務：$completedTasks\n信心值：$confidence%\n目前重點：${modules[1].title}", ColorToken.PrimarySoft))
+        root.addView(storageStatusCard())
         modules.forEach { root.addView(moduleCard(it)) }
         section("學習紀錄時間線")
         root.addView(timelineCard("今日答題紀錄", "已累積 ${learningEventCount} 筆學習事件，包含答題、反思、求助與修復。", ColorToken.Primary))
@@ -515,6 +524,7 @@ class MainActivity : Activity() {
     private fun renderSyncCenter() {
         screen = Screen.SyncCenter
         shell("離線同步中心", "模擬網路不穩時的資料保存與補傳")
+        root.addView(storageStatusCard())
         root.addView(metricRow(
             Metric("待上傳", "${offlinePendingCount} 件", if (offlinePendingCount > 0) ColorToken.Warning else ColorToken.Success),
             Metric("任務包", "${offlinePacks.size} 組", ColorToken.Primary),
@@ -526,6 +536,7 @@ class MainActivity : Activity() {
         root.addView(ui.primaryButton("全部標記為已同步") {
             offlinePendingCount = 0
             persistState()
+            recordLearningEvent("sync", "本機紀錄已標記同步", "展示版將待同步數歸零，資料仍保留在 SQLite。")
             renderSyncCenter()
         })
         bottomNav()
@@ -947,6 +958,26 @@ class MainActivity : Activity() {
         })
         box.addView(ui.body("English+ 已把心情狀態、任務長度、斷點證據和 AI 做過的處理一起整理，讓志工從陪伴開始。", "#334155"))
         return ui.margins(box, 0, 8, 0, 16)
+    }
+
+    private fun storageStatusCard(): View {
+        val snapshot = stateStore.storageSnapshot()
+        val stateText = if (snapshot.stateSaved) "已保存" else "尚未建立"
+        val box = ui.container(ColorToken.SuccessSoft, ColorToken.Border)
+        box.addView(ui.statusPill("本機資料庫", ColorToken.Success))
+        box.addView(ui.label("學習紀錄已寫入手機", 18, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(metricRow(
+            Metric("狀態", stateText, ColorToken.Success),
+            Metric("事件", "${snapshot.eventCount} 筆", ColorToken.Primary),
+            Metric("同步", "${offlinePendingCount} 待傳", if (offlinePendingCount > 0) ColorToken.Warning else ColorToken.Success)
+        ))
+        box.addView(ui.body("最新紀錄：${snapshot.latestEventTitle}", "#334155"))
+        box.addView(ui.body("目前先存在 SQLite；下一輪登入與雲端同步可以接這層資料。", ColorToken.Muted).apply {
+            setPadding(0, ui.dp(6), 0, 0)
+        })
+        return ui.margins(box, 0, 8, 0, 12)
     }
 
     private fun currentTaskFocus(): View {
