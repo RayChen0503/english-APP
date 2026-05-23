@@ -2,6 +2,7 @@ package tw.edu.citizenaction.soracompanion.state
 
 import android.content.Context
 import tw.edu.citizenaction.soracompanion.model.AppState
+import tw.edu.citizenaction.soracompanion.model.LocalAccount
 import tw.edu.citizenaction.soracompanion.model.Mood
 import tw.edu.citizenaction.soracompanion.storage.EnglishPlusDatabase
 import tw.edu.citizenaction.soracompanion.storage.LearningEvent
@@ -31,6 +32,14 @@ class PrototypeStateStore(context: Context) {
 
     fun recordEvent(type: String, title: String, detail: String) {
         database.addLearningEvent(LearningEvent(type, title, detail))
+    }
+
+    fun localAccounts(defaultAccounts: List<LocalAccount>): List<LocalAccount> {
+        return database.loadAccounts(defaultAccounts)
+    }
+
+    fun markAccountUsed(displayName: String) {
+        database.markAccountUsed(displayName)
     }
 
     fun storageSnapshot(): StorageSnapshot = database.snapshot()

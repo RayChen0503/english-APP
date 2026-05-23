@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import tw.edu.citizenaction.soracompanion.model.AppState
+import tw.edu.citizenaction.soracompanion.model.LocalAccount
 import tw.edu.citizenaction.soracompanion.model.Mood
 
 data class LearningEvent(
@@ -54,6 +55,7 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
             )
             """.trimIndent()
         )
+        createLocalAccountsTable(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -70,6 +72,23 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
                 """.trimIndent()
             )
         }
+        if (oldVersion < 3) {
+            createLocalAccountsTable(db)
+        }
+    }
+
+    private fun createLocalAccountsTable(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS local_accounts (
+                display_name TEXT PRIMARY KEY,
+                role_label TEXT NOT NULL,
+                class_code TEXT NOT NULL,
+                login_state TEXT NOT NULL,
+                last_used_at INTEGER NOT NULL DEFAULT 0
+            )
+            """.trimIndent()
+        )
     }
 
     fun loadState(): AppState? {
@@ -134,6 +153,60 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
         writableDatabase.insert("learning_events", null, values)
     }
 
+    fun seedAccounts(defaultAccounts: List<LocalAccount>) {
+        if (accountCount() > 0) return
+        val db = writableDatabase
+        defaultAccounts.forEach { account ->
+            val values = ContentValues().apply {
+                put("display_name", account.displayName)
+                put("role_label", account.roleLabel)
+                put("class_code", account.classCode)
+                put("login_state", account.loginState)
+                put("last_used_at", 0L)
+            }
+            db.insertWithOnConflict("local_accounts", null, values, SQLiteDatabase.CONFLICT_IGNORE)
+        }
+    }
+
+    fun loadAccounts(defaultAccounts: List<LocalAccount>): List<LocalAccount> {
+        seedAccounts(defaultAccounts)
+        return readableDatabase.query(
+            "local_accounts",
+            arrayOf("display_name", "role_label", "class_code", "login_state"),
+            null,
+            null,
+            null,
+            null,
+            "role_label ASC, display_name ASC"
+        ).use { cursor ->
+            val accounts = mutableListOf<LocalAccount>()
+            while (cursor.moveToNext()) {
+                accounts.add(
+                    LocalAccount(
+                        displayName = cursor.getString(cursor.getColumnIndexOrThrow("display_name")),
+                        roleLabel = cursor.getString(cursor.getColumnIndexOrThrow("role_label")),
+                        classCode = cursor.getString(cursor.getColumnIndexOrThrow("class_code")),
+                        loginState = cursor.getString(cursor.getColumnIndexOrThrow("login_state"))
+                    )
+                )
+            }
+            accounts.ifEmpty { defaultAccounts }
+        }
+    }
+
+    fun markAccountUsed(displayName: String) {
+        val values = ContentValues().apply {
+            put("last_used_at", System.currentTimeMillis())
+        }
+        writableDatabase.update("local_accounts", values, "display_name = ?", arrayOf(displayName))
+    }
+
+    private fun accountCount(): Int {
+        return readableDatabase.rawQuery("SELECT COUNT(*) FROM local_accounts", null).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getInt(0) else 0
+        }
+    }
+
     fun snapshot(): StorageSnapshot {
         val stateSaved = loadState() != null
         val eventCount = readableDatabase.rawQuery("SELECT COUNT(*) FROM learning_events", null).use { cursor ->
@@ -150,6 +223,6 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
 
     companion object {
         private const val DB_NAME = "english_plus_local.db"
-        private const val DB_VERSION = 2
+        private const val DB_VERSION = 3
     }
 }

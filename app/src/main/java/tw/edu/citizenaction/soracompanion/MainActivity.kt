@@ -81,7 +81,7 @@ class MainActivity : Activity() {
     private val reflectionPrompts = PrototypeRepository.reflectionPrompts
     private val teacherActions = PrototypeRepository.teacherActions
     private val syncRecords = PrototypeRepository.syncRecords
-    private val localAccounts = PrototypeRepository.localAccounts
+    private val defaultAccounts = PrototypeRepository.localAccounts
     private val aiScenarios = PrototypeRepository.aiScenarios
     private val breakpoints: MutableList<Breakpoint> = PrototypeRepository.initialBreakpoints()
 
@@ -104,6 +104,7 @@ class MainActivity : Activity() {
         managedStudentCount = saved.managedStudentCount
         offlinePendingCount = saved.offlinePendingCount
         selectedAccountName = saved.selectedAccountName
+        role = if (currentAccount().roleLabel == "學生") Role.Student else Role.Mentor
         mentorReplyCount = saved.mentorReplyCount
         learningEventCount = saved.learningEventCount
         repairedMistakeCount = saved.repairedMistakeCount
@@ -118,6 +119,21 @@ class MainActivity : Activity() {
         stateStore.recordEvent(type, title, detail)
     }
 
+    private fun accountList(): List<LocalAccount> = stateStore.localAccounts(defaultAccounts)
+
+    private fun currentAccount(): LocalAccount {
+        return accountList().firstOrNull { it.displayName == selectedAccountName }
+            ?: accountList().first()
+    }
+
+    private fun selectAccount(account: LocalAccount) {
+        selectedAccountName = account.displayName
+        role = if (account.roleLabel == "學生") Role.Student else Role.Mentor
+        stateStore.markAccountUsed(account.displayName)
+        persistState()
+        recordLearningEvent("account_login", "切換登入：${account.displayName}", "角色：${account.roleLabel}｜班級/群組：${account.classCode}")
+    }
+
     private fun renderHome() {
         screen = Screen.Home
         shell("English+", "偏鄉學生雙軌學習平台")
@@ -128,6 +144,7 @@ class MainActivity : Activity() {
     }
 
     private fun studentHome() {
+        root.addView(classContextCard())
         root.addView(nextActionCard())
         section("今天有兩條路可以走")
         root.addView(trackEntry(
@@ -171,6 +188,7 @@ class MainActivity : Activity() {
 
     private fun mentorHome() {
         section("老師/志工工作台")
+        root.addView(classContextCard())
         root.addView(metricRow(
             Metric("待關懷", "2 位", ColorToken.Warning),
             Metric("高風險", "1 個", ColorToken.Danger),
@@ -207,13 +225,13 @@ class MainActivity : Activity() {
 
     private fun renderAccountCenter() {
         screen = Screen.Account
-        shell("帳號與班級資料", "本機原型版先模擬登入、角色與班級代碼")
-        root.addView(card("目前使用者", "$selectedAccountName｜${roleLabel()}\n這是本機展示帳號，未連接正式登入系統。", ColorToken.PrimarySoft))
-        localAccounts.forEach { root.addView(accountCard(it)) }
+        val account = currentAccount()
+        shell("登入與班級資料", "本機版先建立角色、班級代碼與目前登入者")
+        root.addView(card("目前登入", "${account.displayName}｜${account.roleLabel}\n班級/群組：${account.classCode}\n${account.loginState}", ColorToken.PrimarySoft))
+        accountList().forEach { root.addView(accountCard(it)) }
         root.addView(ui.secondaryButton("切換到老師/志工端") {
-            role = Role.Mentor
-            selectedAccountName = "王老師"
-            persistState()
+            val teacher = accountList().firstOrNull { it.roleLabel != "學生" } ?: account
+            selectAccount(teacher)
             renderHome()
         })
         bottomNav()
@@ -599,6 +617,7 @@ class MainActivity : Activity() {
     private fun renderStudentManager() {
         screen = Screen.StudentManager
         shell("學生資料管理", "本機原型先模擬新增學生、分組與追蹤狀態")
+        root.addView(classContextCard())
         root.addView(metricRow(
             Metric("管理學生", "${managedStudentCount} 位", ColorToken.Primary),
             Metric("高風險", "1 位", ColorToken.Danger),
@@ -753,11 +772,13 @@ class MainActivity : Activity() {
     private fun roleSwitch(): View {
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         row.addView(ui.chipButton("學生端", role == Role.Student) {
-            role = Role.Student
+            val studentAccount = accountList().firstOrNull { it.roleLabel == "學生" } ?: currentAccount()
+            selectAccount(studentAccount)
             renderHome()
         })
         row.addView(ui.chipButton("老師/志工端", role == Role.Mentor) {
-            role = Role.Mentor
+            val mentorAccount = accountList().firstOrNull { it.roleLabel != "學生" } ?: currentAccount()
+            selectAccount(mentorAccount)
             renderHome()
         })
         return ui.margins(row, 0, 8, 0, 16)
@@ -980,6 +1001,22 @@ class MainActivity : Activity() {
         return ui.margins(box, 0, 8, 0, 12)
     }
 
+    private fun classContextCard(): View {
+        val account = currentAccount()
+        val fill = if (account.roleLabel == "學生") ColorToken.PrimarySoft else ColorToken.SuccessSoft
+        val color = if (account.roleLabel == "學生") ColorToken.Primary else ColorToken.Success
+        val box = ui.container(fill, ColorToken.Border)
+        box.addView(ui.statusPill("本機登入", color))
+        box.addView(ui.label("${account.displayName}｜${account.roleLabel}", 17, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(10), 0, ui.dp(4))
+        })
+        box.addView(ui.body("班級/群組代碼：${account.classCode}", "#334155"))
+        box.addView(ui.body("這輪先用本機帳號模擬登入；下一輪可接 Firebase Auth 或校內帳號。", ColorToken.Muted).apply {
+            setPadding(0, ui.dp(6), 0, 0)
+        })
+        return ui.margins(box, 0, 8, 0, 12)
+    }
+
     private fun currentTaskFocus(): View {
         val task = studyTasks.first()
         val box = ui.sectionBand(ColorToken.PrimarySoft)
@@ -1088,9 +1125,7 @@ class MainActivity : Activity() {
         box.addView(ui.body("班級/群組代碼：${account.classCode}", "#334155").apply { setPadding(0, ui.dp(7), 0, 0) })
         box.addView(ui.body(account.loginState, ColorToken.Muted))
         box.setOnClickListener {
-            selectedAccountName = account.displayName
-            role = if (account.roleLabel == "學生") Role.Student else Role.Mentor
-            persistState()
+            selectAccount(account)
             renderAccountCenter()
         }
         return ui.margins(box, 0, 8, 0, 8)
