@@ -1,12 +1,17 @@
 package tw.edu.citizenaction.soracompanion
 
 import android.app.Activity
+import android.graphics.Color
 import android.os.Bundle
+import android.text.InputType
 import android.view.Gravity
 import android.view.View
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
+import tw.edu.citizenaction.soracompanion.ai.AiSupportResult
+import tw.edu.citizenaction.soracompanion.ai.OpenAiClient
 import tw.edu.citizenaction.soracompanion.data.PrototypeRepository
 import tw.edu.citizenaction.soracompanion.model.ActionItem
 import tw.edu.citizenaction.soracompanion.model.AiScenario
@@ -645,17 +650,120 @@ class MainActivity : Activity() {
 
     private fun renderAiLab() {
         screen = Screen.AiLab
-        shell("AI 提示實驗室", "用本機規則模擬 AI 診斷、回饋與接力摘要")
-        root.addView(card("目前狀態", "這不是正式串接 AI API，而是把未來 AI 應該輸出的三件事先做成可展示原型：診斷、學生語氣回饋、志工接力摘要。", ColorToken.WarningSoft))
+        shell("AI 提示實驗室", "可切換真 OpenAI API 與本機模擬")
+        root.addView(openAiStatusCard())
+        root.addView(openAiKeyEntryCard())
+        root.addView(card("使用方式", "設定 OpenAI API Key 後可呼叫 Responses API 產生診斷、學生語氣回饋與志工接力摘要。沒有 Key 或網路失敗時，仍會保留本機模擬。", ColorToken.WarningSoft))
         aiScenarios.forEach { root.addView(aiScenarioCard(it)) }
-        root.addView(ui.primaryButton("用目前錯題生成 AI 回饋") { renderGeneratedAiFeedback() })
+        root.addView(ui.primaryButton("呼叫真 AI 生成回饋") { renderLiveAiFeedback() })
+        root.addView(ui.secondaryButton("改用本機模擬生成") { renderGeneratedAiFeedback() })
         bottomNav()
     }
 
-    private fun renderGeneratedAiFeedback() {
+    private fun openAiStatusCard(): View {
+        val hasKey = stateStore.hasOpenAiApiKey()
+        val box = ui.container(
+            if (hasKey) ColorToken.SuccessSoft else ColorToken.WarningSoft,
+            ColorToken.Border
+        )
+        box.addView(ui.statusPill(if (hasKey) "真 AI 已啟用" else "本機模擬模式", if (hasKey) ColorToken.Success else ColorToken.Warning))
+        box.addView(ui.label(if (hasKey) "OpenAI API Key 已儲存在本機" else "尚未設定 OpenAI API Key", 18, ColorToken.Ink, true).apply {
+            layoutParams = ui.fullWidthParams()
+        })
+        box.addView(ui.body(
+            if (hasKey) {
+                "按下「呼叫真 AI」時會送出目前題目、情緒狀態與錯題次數；如果網路或 API 失敗，會自動回到本機模擬。"
+            } else {
+                "目前不會連線到外部 AI。你可以先用展示模式，或在下方貼上 OpenAI API Key 後啟用真 AI 回饋。"
+            }
+        ))
+        return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun openAiKeyEntryCard(): View {
+        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        box.addView(ui.label("OpenAI Key 設定", 18, ColorToken.Ink, true))
+        box.addView(ui.body("Key 只會存在這台裝置的私人設定中，不會寫進 GitHub。課堂展示時可以留空，系統會使用本機模擬。"))
+
+        val input = EditText(this).apply {
+            hint = if (stateStore.hasOpenAiApiKey()) "已設定，可貼上新 Key 覆蓋" else "貼上 sk- 開頭的 API Key"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setSingleLine(true)
+            textSize = 15f
+            setTextColor(Color.parseColor(ColorToken.Ink))
+            setHintTextColor(Color.parseColor(ColorToken.Muted))
+            background = ui.rounded(ColorToken.Surface, ColorToken.Border)
+            setPadding(ui.dp(14), ui.dp(12), ui.dp(14), ui.dp(12))
+            layoutParams = ui.fullWidthParams()
+        }
+        box.addView(input)
+
+        box.addView(ui.primaryButton("儲存並啟用真 AI") {
+            val key = input.text.toString().trim()
+            if (key.startsWith("sk-")) {
+                stateStore.saveOpenAiApiKey(key)
+                recordLearningEvent("ai_config", "已更新 OpenAI API Key", "真 AI 模式已可在 AI 提示實驗室呼叫。")
+            } else {
+                recordLearningEvent("ai_config", "OpenAI API Key 未更新", "輸入內容不是 sk- 開頭，維持原本設定。")
+            }
+            renderAiLab()
+        })
+        box.addView(ui.secondaryButton("清除 Key，改用本機模擬") {
+            stateStore.saveOpenAiApiKey("")
+            recordLearningEvent("ai_config", "已清除 OpenAI API Key", "AI 提示實驗室已回到本機模擬模式。")
+            renderAiLab()
+        })
+        return ui.margins(box, 0, 0, 0, 12)
+    }
+
+    private fun renderLiveAiFeedback() {
+        val apiKey = stateStore.openAiApiKey()
+        if (!stateStore.hasOpenAiApiKey()) {
+            recordLearningEvent("ai_fallback", "未設定 OpenAI API Key", "使用本機 AI 模擬回饋。")
+            renderGeneratedAiFeedback("尚未設定 OpenAI API Key，已改用本機模擬。")
+            return
+        }
+        val q = questions[currentQuestionIndex]
+        screen = Screen.AiLab
+        shell("AI 生成中", "正在呼叫 OpenAI Responses API")
+        root.addView(card("請稍候", "English+ 正在把目前題目、情緒狀態與錯題次數送出，產生短回饋與接力摘要。", ColorToken.PrimarySoft))
+        bottomNav()
+        Thread {
+            try {
+                val result = OpenAiClient(apiKey).generateSupport(
+                    question = q.prompt,
+                    concept = q.concept,
+                    answerContext = q.repairHint,
+                    moodLabel = mood.label,
+                    wrongAttempts = wrongAttempts
+                )
+                runOnUiThread { renderLiveAiResult(result) }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    recordLearningEvent("ai_fallback", "OpenAI 呼叫失敗", error.message ?: "未知錯誤")
+                    renderGeneratedAiFeedback("OpenAI 呼叫失敗，已改用本機模擬：${error.message ?: "未知錯誤"}")
+                }
+            }
+        }.start()
+    }
+
+    private fun renderLiveAiResult(result: AiSupportResult) {
+        screen = Screen.AiLab
+        shell("AI 生成結果", result.source)
+        root.addView(card("診斷", result.diagnosis, ColorToken.WarningSoft))
+        root.addView(card("給學生的話", result.studentFeedback, ColorToken.SuccessSoft))
+        root.addView(card("給志工的摘要", result.handoffSummary, ColorToken.Card))
+        recordLearningEvent("ai_live", "OpenAI 生成回饋", result.diagnosis)
+        root.addView(ui.primaryButton("回今日任務") { renderLesson() })
+        root.addView(ui.secondaryButton("回 AI 提示實驗室") { renderAiLab() })
+        bottomNav()
+    }
+
+    private fun renderGeneratedAiFeedback(notice: String? = null) {
         screen = Screen.AiLab
         val q = questions[currentQuestionIndex]
         shell("AI 生成結果模擬", "依目前題型與錯題狀態產生個人化回饋")
+        notice?.let { root.addView(card("真 AI 狀態", it, ColorToken.WarningSoft)) }
         root.addView(card("輸入資料", "${q.prompt}\n題型：${q.type}\n目前錯誤次數：$wrongAttempts", ColorToken.PrimarySoft))
         root.addView(card("診斷", aiDiagnosis(q), ColorToken.WarningSoft))
         root.addView(card("給學生的話", aiStudentFeedback(q), ColorToken.SuccessSoft))
@@ -665,6 +773,7 @@ class MainActivity : Activity() {
             offlinePendingCount += 1
             learningEventCount += 1
             persistState()
+            recordLearningEvent("ai_local", "本機 AI 模擬回饋", aiDiagnosis(q))
             renderGeneratedAiFeedback()
         })
         root.addView(ui.primaryButton("回今日任務") { renderLesson() })

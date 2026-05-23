@@ -42,6 +42,16 @@ class PrototypeStateStore(context: Context) {
         database.markAccountUsed(displayName)
     }
 
+    fun saveOpenAiApiKey(apiKey: String) {
+        prefs.edit().putString("openai_api_key", apiKey.trim()).apply()
+    }
+
+    fun openAiApiKey(): String {
+        return prefs.getString("openai_api_key", "")?.trim().orEmpty()
+    }
+
+    fun hasOpenAiApiKey(): Boolean = openAiApiKey().startsWith("sk-")
+
     fun storageSnapshot(): StorageSnapshot = database.snapshot()
 
     private fun loadLegacyPrefs(): AppState {
