@@ -13,6 +13,8 @@ import android.widget.ScrollView
 import java.io.File
 import tw.edu.citizenaction.soracompanion.ai.AiSupportResult
 import tw.edu.citizenaction.soracompanion.ai.OpenAiClient
+import tw.edu.citizenaction.soracompanion.auth.AuthClient
+import tw.edu.citizenaction.soracompanion.auth.AuthSession
 import tw.edu.citizenaction.soracompanion.cloud.CloudBackendClient
 import tw.edu.citizenaction.soracompanion.cloud.CloudSyncResult
 import tw.edu.citizenaction.soracompanion.data.PrototypeRepository
@@ -278,14 +280,65 @@ class MainActivity : Activity() {
     private fun renderAccountCenter() {
         screen = Screen.Account
         val account = currentAccount()
-        shell("登入與班級資料", "本機版先建立角色、班級代碼與目前登入者")
+        shell("登入與班級資料", "本機展示帳號與雲端登入可並存")
         root.addView(card("目前登入", "${account.displayName}｜${account.roleLabel}\n班級/群組：${account.classCode}\n${account.loginState}", ColorToken.PrimarySoft))
+        root.addView(remoteAuthStatusCard())
+        root.addView(remoteAuthLoginCard())
         accountList().forEach { root.addView(accountCard(it)) }
         root.addView(ui.secondaryButton("切換到老師/志工端") {
             val teacher = accountList().firstOrNull { it.roleLabel != "學生" } ?: account
             selectAccount(teacher)
             renderHome()
         })
+        bottomNav()
+    }
+
+    private fun renderRemoteLoginProgress(username: String, password: String, classCode: String) {
+        screen = Screen.Account
+        val endpoint = stateStore.remoteAuthEndpoint()
+        if (!stateStore.hasRemoteAuthEndpoint()) {
+            shell("尚未設定正式登入端點", "先貼上 Firebase Auth 包裝 API 或校內登入 API")
+            root.addView(card("目前狀態", "沒有登入端點時，系統仍使用本機展示帳號。", ColorToken.WarningSoft))
+            root.addView(remoteAuthLoginCard())
+            root.addView(ui.secondaryButton("回帳號中心") { renderAccountCenter() })
+            bottomNav()
+            return
+        }
+        shell("正在登入", "呼叫正式登入端點驗證帳號")
+        root.addView(card("登入端點", endpoint, ColorToken.PrimarySoft))
+        root.addView(card("登入帳號", "$username\n班級/群組：${classCode.ifBlank { "未填" }}", ColorToken.Card))
+        bottomNav()
+
+        Thread {
+            try {
+                val session = AuthClient(endpoint).login(username, password, classCode)
+                runOnUiThread { renderRemoteLoginSuccess(session) }
+            } catch (error: Exception) {
+                runOnUiThread { renderRemoteLoginFailure(error.message ?: "未知錯誤") }
+            }
+        }.start()
+    }
+
+    private fun renderRemoteLoginSuccess(session: AuthSession) {
+        stateStore.saveAuthSession(session)
+        selectedAccountName = session.displayName
+        role = if (session.roleLabel == "學生") Role.Student else Role.Mentor
+        persistState()
+        addOfflineSyncItem("雲端登入成功：${session.displayName}", "正式登入", "角色 ${session.roleLabel} / 班級 ${session.classCode}", "已同步")
+        recordLearningEvent("remote_login", "雲端登入成功", "${session.displayName} / ${session.roleLabel} / ${session.classCode}")
+        shell("雲端登入成功", "正式帳號已寫入本機帳號清單")
+        root.addView(card("登入結果", stateStore.authSessionSummary(), ColorToken.SuccessSoft))
+        root.addView(ui.primaryButton("進入首頁") { renderHome() })
+        root.addView(ui.secondaryButton("回帳號中心") { renderAccountCenter() })
+        bottomNav()
+    }
+
+    private fun renderRemoteLoginFailure(message: String) {
+        recordLearningEvent("remote_login_failed", "雲端登入失敗", message)
+        shell("雲端登入失敗", "本機展示帳號仍可使用")
+        root.addView(card("錯誤訊息", message, ColorToken.WarningSoft))
+        root.addView(card("備援策略", "正式版可以在這裡加入 Firebase Auth、Google 登入或校內 SSO。現在先保留本機帳號，避免展示流程中斷。", ColorToken.Card))
+        root.addView(ui.primaryButton("回帳號中心") { renderAccountCenter() })
         bottomNav()
     }
 
@@ -1401,8 +1454,90 @@ class MainActivity : Activity() {
             setPadding(0, ui.dp(10), 0, ui.dp(4))
         })
         box.addView(ui.body("班級/群組代碼：${account.classCode}", "#334155"))
-        box.addView(ui.body("這輪先用本機帳號模擬登入；下一輪可接 Firebase Auth 或校內帳號。", ColorToken.Muted).apply {
+        box.addView(ui.body("可用本機展示帳號，也可在帳號中心接校內/Firebase 登入端點。", ColorToken.Muted).apply {
             setPadding(0, ui.dp(6), 0, 0)
+        })
+        return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun remoteAuthStatusCard(): View {
+        val hasEndpoint = stateStore.hasRemoteAuthEndpoint()
+        val box = ui.container(if (hasEndpoint) ColorToken.SuccessSoft else ColorToken.WarningSoft, ColorToken.Border)
+        box.addView(ui.statusPill(if (hasEndpoint) "正式登入端點已設定" else "本機展示登入", if (hasEndpoint) ColorToken.Success else ColorToken.Warning))
+        box.addView(ui.label(if (hasEndpoint) "可呼叫校內/Firebase 登入 API" else "尚未接正式登入服務", 18, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body("${stateStore.authSessionSummary()}\n\n端點：${stateStore.remoteAuthEndpoint().ifBlank { "尚未設定" }}", "#334155"))
+        return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun remoteAuthLoginCard(): View {
+        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        box.addView(ui.label("正式登入設定", 18, ColorToken.Ink, true))
+        box.addView(ui.body("支援 Firebase Auth 包裝 API、Google 登入後端或校內帳號 API。後端需接受 JSON：username、password、classCode，回傳 displayName、roleLabel、classCode、token。"))
+
+        val endpointInput = EditText(this).apply {
+            hint = "https://example.com/api/auth/login"
+            setText(stateStore.remoteAuthEndpoint())
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+            setSingleLine(true)
+            textSize = 15f
+            setTextColor(Color.parseColor(ColorToken.Ink))
+            setHintTextColor(Color.parseColor(ColorToken.Muted))
+            background = ui.rounded(ColorToken.Surface, ColorToken.Border)
+            setPadding(ui.dp(14), ui.dp(12), ui.dp(14), ui.dp(12))
+            layoutParams = ui.fullWidthParams()
+        }
+        val usernameInput = EditText(this).apply {
+            hint = "帳號 / email / 學號"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+            setSingleLine(true)
+            textSize = 15f
+            setTextColor(Color.parseColor(ColorToken.Ink))
+            setHintTextColor(Color.parseColor(ColorToken.Muted))
+            background = ui.rounded(ColorToken.Surface, ColorToken.Border)
+            setPadding(ui.dp(14), ui.dp(12), ui.dp(14), ui.dp(12))
+            layoutParams = ui.fullWidthParams()
+        }
+        val passwordInput = EditText(this).apply {
+            hint = "密碼"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setSingleLine(true)
+            textSize = 15f
+            setTextColor(Color.parseColor(ColorToken.Ink))
+            setHintTextColor(Color.parseColor(ColorToken.Muted))
+            background = ui.rounded(ColorToken.Surface, ColorToken.Border)
+            setPadding(ui.dp(14), ui.dp(12), ui.dp(14), ui.dp(12))
+            layoutParams = ui.fullWidthParams()
+        }
+        val classInput = EditText(this).apply {
+            hint = "班級/群組代碼，例如 YILAN-CHENGZHI-8A"
+            setText(currentAccount().classCode)
+            inputType = InputType.TYPE_CLASS_TEXT
+            setSingleLine(true)
+            textSize = 15f
+            setTextColor(Color.parseColor(ColorToken.Ink))
+            setHintTextColor(Color.parseColor(ColorToken.Muted))
+            background = ui.rounded(ColorToken.Surface, ColorToken.Border)
+            setPadding(ui.dp(14), ui.dp(12), ui.dp(14), ui.dp(12))
+            layoutParams = ui.fullWidthParams()
+        }
+        box.addView(endpointInput)
+        box.addView(usernameInput)
+        box.addView(passwordInput)
+        box.addView(classInput)
+        box.addView(ui.primaryButton("儲存端點並登入") {
+            stateStore.saveRemoteAuthEndpoint(endpointInput.text.toString())
+            renderRemoteLoginProgress(
+                username = usernameInput.text.toString().trim(),
+                password = passwordInput.text.toString(),
+                classCode = classInput.text.toString().trim()
+            )
+        })
+        box.addView(ui.secondaryButton("只儲存登入端點") {
+            stateStore.saveRemoteAuthEndpoint(endpointInput.text.toString())
+            recordLearningEvent("remote_auth_config", "已更新正式登入端點", stateStore.remoteAuthEndpoint().ifBlank { "已清空" })
+            renderAccountCenter()
         })
         return ui.margins(box, 0, 8, 0, 12)
     }

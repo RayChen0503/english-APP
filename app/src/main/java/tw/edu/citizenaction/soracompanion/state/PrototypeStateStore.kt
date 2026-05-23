@@ -3,6 +3,7 @@ package tw.edu.citizenaction.soracompanion.state
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import tw.edu.citizenaction.soracompanion.auth.AuthSession
 import tw.edu.citizenaction.soracompanion.model.AppState
 import tw.edu.citizenaction.soracompanion.model.CollaborationNote
 import tw.edu.citizenaction.soracompanion.model.LocalAccount
@@ -44,6 +45,55 @@ class PrototypeStateStore(context: Context) {
 
     fun markAccountUsed(displayName: String) {
         database.markAccountUsed(displayName)
+    }
+
+    fun saveRemoteAuthEndpoint(url: String) {
+        prefs.edit().putString("remote_auth_endpoint", url.trim()).apply()
+    }
+
+    fun remoteAuthEndpoint(): String {
+        return prefs.getString("remote_auth_endpoint", "")?.trim().orEmpty()
+    }
+
+    fun hasRemoteAuthEndpoint(): Boolean {
+        val url = remoteAuthEndpoint()
+        return url.startsWith("https://") || url.startsWith("http://")
+    }
+
+    fun saveAuthSession(session: AuthSession) {
+        val tokenPreview = if (session.token.length > 8) {
+            "${session.token.take(4)}...${session.token.takeLast(4)}"
+        } else if (session.token.isBlank()) {
+            "未回傳 token"
+        } else {
+            "已保存"
+        }
+        prefs.edit()
+            .putString("remote_auth_display_name", session.displayName)
+            .putString("remote_auth_role_label", session.roleLabel)
+            .putString("remote_auth_class_code", session.classCode)
+            .putString("remote_auth_token", session.token)
+            .putString("remote_auth_token_preview", tokenPreview)
+            .putString("remote_auth_provider", session.provider)
+            .apply()
+        database.saveAccount(
+            LocalAccount(
+                displayName = session.displayName,
+                roleLabel = session.roleLabel,
+                classCode = session.classCode,
+                loginState = "雲端登入：${session.provider} / $tokenPreview"
+            )
+        )
+    }
+
+    fun authSessionSummary(): String {
+        val name = prefs.getString("remote_auth_display_name", "")?.trim().orEmpty()
+        if (name.isBlank()) return "尚未完成雲端登入"
+        val role = prefs.getString("remote_auth_role_label", "")?.trim().orEmpty()
+        val classCode = prefs.getString("remote_auth_class_code", "")?.trim().orEmpty()
+        val token = prefs.getString("remote_auth_token_preview", "")?.trim().orEmpty()
+        val provider = prefs.getString("remote_auth_provider", "")?.trim().orEmpty()
+        return "$name｜$role\n$classCode\n$provider｜$token"
     }
 
     fun addCollaborationNote(note: CollaborationNote) {

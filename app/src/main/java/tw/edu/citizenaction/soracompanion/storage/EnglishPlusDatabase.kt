@@ -245,6 +245,17 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
         writableDatabase.update("local_accounts", values, "display_name = ?", arrayOf(displayName))
     }
 
+    fun saveAccount(account: LocalAccount) {
+        val values = ContentValues().apply {
+            put("display_name", account.displayName)
+            put("role_label", account.roleLabel)
+            put("class_code", account.classCode)
+            put("login_state", account.loginState)
+            put("last_used_at", System.currentTimeMillis())
+        }
+        writableDatabase.insertWithOnConflict("local_accounts", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
     fun addCollaborationNote(note: CollaborationNote) {
         val values = ContentValues().apply {
             put("actor", note.actor)
