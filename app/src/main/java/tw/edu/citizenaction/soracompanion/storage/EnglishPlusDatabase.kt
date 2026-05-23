@@ -9,6 +9,8 @@ import tw.edu.citizenaction.soracompanion.model.CollaborationNote
 import tw.edu.citizenaction.soracompanion.model.LocalAccount
 import tw.edu.citizenaction.soracompanion.model.Mood
 import tw.edu.citizenaction.soracompanion.model.OfflineSyncItem
+import tw.edu.citizenaction.soracompanion.model.Question
+import tw.edu.citizenaction.soracompanion.model.QuestionBankItem
 
 data class LearningEvent(
     val type: String,
@@ -63,6 +65,7 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
         createLocalAccountsTable(db)
         createCollaborationNotesTable(db)
         createOfflineSyncItemsTable(db)
+        createQuestionBankTable(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -87,6 +90,9 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
         }
         if (oldVersion < 5) {
             createOfflineSyncItemsTable(db)
+        }
+        if (oldVersion < 6) {
+            createQuestionBankTable(db)
         }
     }
 
@@ -129,6 +135,28 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
                 category TEXT NOT NULL,
                 detail TEXT NOT NULL,
                 status TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+    }
+
+    private fun createQuestionBankTable(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS question_bank (
+                id TEXT PRIMARY KEY,
+                level TEXT NOT NULL,
+                unit TEXT NOT NULL,
+                skill TEXT NOT NULL,
+                source TEXT NOT NULL,
+                prompt TEXT NOT NULL,
+                options TEXT NOT NULL,
+                answer TEXT NOT NULL,
+                explanation TEXT NOT NULL,
+                concept TEXT NOT NULL,
+                type TEXT NOT NULL,
+                repair_hint TEXT NOT NULL,
                 updated_at INTEGER NOT NULL
             )
             """.trimIndent()
@@ -334,6 +362,67 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
         }
     }
 
+    fun seedQuestionBank(items: List<QuestionBankItem>) {
+        if (questionBankCount() > 0) return
+        items.forEach { saveQuestionBankItem(it) }
+    }
+
+    fun saveQuestionBankItem(item: QuestionBankItem) {
+        val values = ContentValues().apply {
+            put("id", item.id)
+            put("level", item.level)
+            put("unit", item.unit)
+            put("skill", item.skill)
+            put("source", item.source)
+            put("prompt", item.question.prompt)
+            put("options", item.question.options.joinToString("||"))
+            put("answer", item.question.answer)
+            put("explanation", item.question.explanation)
+            put("concept", item.question.concept)
+            put("type", item.question.type)
+            put("repair_hint", item.question.repairHint)
+            put("updated_at", item.updatedAt)
+        }
+        writableDatabase.insertWithOnConflict("question_bank", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    fun loadQuestionBank(limit: Int = 80): List<QuestionBankItem> {
+        return readableDatabase.query(
+            "question_bank",
+            arrayOf("id", "level", "unit", "skill", "source", "prompt", "options", "answer", "explanation", "concept", "type", "repair_hint", "updated_at"),
+            null,
+            null,
+            null,
+            null,
+            "level ASC, unit ASC, skill ASC, id ASC",
+            limit.toString()
+        ).use { cursor ->
+            val items = mutableListOf<QuestionBankItem>()
+            while (cursor.moveToNext()) {
+                items.add(
+                    QuestionBankItem(
+                        id = cursor.getString(cursor.getColumnIndexOrThrow("id")),
+                        level = cursor.getString(cursor.getColumnIndexOrThrow("level")),
+                        unit = cursor.getString(cursor.getColumnIndexOrThrow("unit")),
+                        skill = cursor.getString(cursor.getColumnIndexOrThrow("skill")),
+                        source = cursor.getString(cursor.getColumnIndexOrThrow("source")),
+                        question = Question(
+                            prompt = cursor.getString(cursor.getColumnIndexOrThrow("prompt")),
+                            options = cursor.getString(cursor.getColumnIndexOrThrow("options")).split("||"),
+                            answer = cursor.getString(cursor.getColumnIndexOrThrow("answer")),
+                            explanation = cursor.getString(cursor.getColumnIndexOrThrow("explanation")),
+                            concept = cursor.getString(cursor.getColumnIndexOrThrow("concept")),
+                            type = cursor.getString(cursor.getColumnIndexOrThrow("type")),
+                            repairHint = cursor.getString(cursor.getColumnIndexOrThrow("repair_hint"))
+                        ),
+                        updatedAt = cursor.getLong(cursor.getColumnIndexOrThrow("updated_at"))
+                    )
+                )
+            }
+            items
+        }
+    }
+
     fun loadLearningEvents(limit: Int = 20): List<LearningEvent> {
         return readableDatabase.query(
             "learning_events",
@@ -394,6 +483,12 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
         }
     }
 
+    private fun questionBankCount(): Int {
+        return readableDatabase.rawQuery("SELECT COUNT(*) FROM question_bank", null).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getInt(0) else 0
+        }
+    }
+
     fun snapshot(): StorageSnapshot {
         val stateSaved = loadState() != null
         val eventCount = readableDatabase.rawQuery("SELECT COUNT(*) FROM learning_events", null).use { cursor ->
@@ -415,6 +510,6 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
 
     companion object {
         private const val DB_NAME = "english_plus_local.db"
-        private const val DB_VERSION = 5
+        private const val DB_VERSION = 6
     }
 }

@@ -40,6 +40,7 @@ import tw.edu.citizenaction.soracompanion.model.OfflineSyncItem
 import tw.edu.citizenaction.soracompanion.model.HandoffPriority
 import tw.edu.citizenaction.soracompanion.model.HelpRequestOption
 import tw.edu.citizenaction.soracompanion.model.Question
+import tw.edu.citizenaction.soracompanion.model.QuestionBankItem
 import tw.edu.citizenaction.soracompanion.model.ReflectionPrompt
 import tw.edu.citizenaction.soracompanion.model.Role
 import tw.edu.citizenaction.soracompanion.model.Screen
@@ -78,7 +79,7 @@ class MainActivity : Activity() {
 
     private val student = PrototypeRepository.student
     private val modules = PrototypeRepository.modules
-    private val questions = PrototypeRepository.questions
+    private var questions = PrototypeRepository.questions
     private val roster = PrototypeRepository.roster
     private val studyTasks = PrototypeRepository.studyTasks
     private val supportMessages = PrototypeRepository.supportMessages
@@ -111,6 +112,8 @@ class MainActivity : Activity() {
     }
 
     private fun restoreState() {
+        stateStore.seedQuestionBank(PrototypeRepository.questionBankItems)
+        questions = stateStore.questionBankQuestions().ifEmpty { PrototypeRepository.questions }
         val saved = stateStore.load()
         mood = saved.mood
         minutes = saved.minutes
@@ -622,6 +625,7 @@ class MainActivity : Activity() {
         shell("個人化學習地圖", "固定節奏比一次衝刺更重要")
         root.addView(card("本週總覽", "完成微任務：$completedTasks\n信心值：$confidence%\n目前重點：${modules[1].title}", ColorToken.PrimarySoft))
         root.addView(storageStatusCard())
+        root.addView(questionBankSummaryCard())
         modules.forEach { root.addView(moduleCard(it)) }
         section("學習紀錄時間線")
         root.addView(timelineCard("今日答題紀錄", "已累積 ${learningEventCount} 筆學習事件，包含答題、反思、求助與修復。", ColorToken.Primary))
@@ -629,10 +633,38 @@ class MainActivity : Activity() {
         root.addView(timelineCard("待同步紀錄", "目前有 ${offlinePendingCount} 筆本機紀錄等待同步。", if (offlinePendingCount > 0) ColorToken.Warning else ColorToken.Success))
         section("錯題修復紀錄")
         mistakeRecords.forEach { root.addView(mistakeCard(it)) }
+        root.addView(ui.secondaryButton("查看正式題庫中心") { renderQuestionBank() })
         root.addView(ui.secondaryButton("查看離線任務包") { renderOfflinePacks() })
         section("陪伴時間線")
         supportMessages.forEach { root.addView(messageCard(it)) }
         root.addView(ui.secondaryButton("看週報") { renderWeeklyReport() })
+        bottomNav()
+    }
+
+    private fun renderQuestionBank() {
+        screen = Screen.QuestionBank
+        val bankItems = stateStore.questionBankItems()
+        val skillCounts = bankItems.groupingBy { it.skill }.eachCount()
+        val levelCounts = bankItems.groupingBy { it.level }.eachCount()
+        shell("正式題庫中心", "依程度、單元、技能管理 English+ 題目")
+        root.addView(questionBankSummaryCard())
+        root.addView(metricRow(
+            Metric("題目", "${bankItems.size} 題", ColorToken.Primary),
+            Metric("技能", "${skillCounts.size} 類", ColorToken.Success),
+            Metric("程度", levelCounts.keys.joinToString("/").ifBlank { "A1" }, ColorToken.Accent)
+        ))
+        root.addView(card("題庫導入狀態", "目前練習流程已改由 SQLite 題庫載入。這一版先建立正式題庫資料表、種子題、分類檢視與後續後台/API 匯入接口的資料結構。", ColorToken.PrimarySoft))
+        section("技能分類")
+        skillCounts.forEach { (skill, count) ->
+            root.addView(timelineCard(skill, "$count 題｜可作為老師後台篩選與分級派題依據", ColorToken.Primary))
+        }
+        section("題目清單")
+        bankItems.take(18).forEach { root.addView(questionBankItemCard(it)) }
+        root.addView(ui.primaryButton("用目前題庫開始練習") {
+            currentQuestionIndex = currentQuestionIndex.coerceIn(0, questions.lastIndex)
+            renderLesson()
+        })
+        root.addView(ui.secondaryButton("回學習地圖") { renderMap() })
         bottomNav()
     }
 
@@ -1243,7 +1275,7 @@ class MainActivity : Activity() {
         nav.addView(navDestination("H", "首頁", screen == Screen.Home || screen == Screen.Account) { renderHome() }, ui.weightParams())
         nav.addView(navDestination("T", "任務", screen == Screen.Lesson || screen == Screen.AiCoach || screen == Screen.Contract || screen == Screen.Reflection) { renderTaskQueue() }, ui.weightParams())
         nav.addView(navDestination("S", "支持", screen == Screen.Breakpoints || screen == Screen.Handoff || screen == Screen.Intervention || screen == Screen.HelpRequest) { renderBreakpoints() }, ui.weightParams())
-        nav.addView(navDestination("M", "地圖", screen == Screen.Map || screen == Screen.Report || screen == Screen.Journey || screen == Screen.StudentDetail || screen == Screen.ActionQueue || screen == Screen.StudentManager || screen == Screen.AiLab || screen == Screen.SyncCenter) { renderMap() }, ui.weightParams())
+        nav.addView(navDestination("M", "地圖", screen == Screen.Map || screen == Screen.Report || screen == Screen.Journey || screen == Screen.StudentDetail || screen == Screen.ActionQueue || screen == Screen.StudentManager || screen == Screen.AiLab || screen == Screen.SyncCenter || screen == Screen.QuestionBank) { renderMap() }, ui.weightParams())
         nav.addView(navDestination("P", "檔案", screen == Screen.Profile) { renderProfile() }, ui.weightParams())
         root.addView(ui.margins(nav, 0, 0, 0, 8))
     }
@@ -1449,6 +1481,43 @@ class MainActivity : Activity() {
             setPadding(0, ui.dp(6), 0, 0)
         })
         return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun questionBankSummaryCard(): View {
+        val bankItems = stateStore.questionBankItems()
+        val skillCount = bankItems.map { it.skill }.distinct().size
+        val unitCount = bankItems.map { it.unit }.distinct().size
+        val box = ui.container(ColorToken.SuccessSoft, ColorToken.Border)
+        box.addView(ui.statusPill("題庫已本機化", ColorToken.Success))
+        box.addView(ui.label("English+ 正式題庫骨架", 18, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(metricRow(
+            Metric("題目", "${bankItems.size} 題", ColorToken.Primary),
+            Metric("單元", "$unitCount 組", ColorToken.Accent),
+            Metric("技能", "$skillCount 類", ColorToken.Success)
+        ))
+        box.addView(ui.body("練習題已從展示清單升級為 SQLite 題庫，保留 level、unit、skill、source 欄位，後續可接分級題庫或老師後台匯入。", "#334155"))
+        box.addView(ui.secondaryButton("打開題庫中心") { renderQuestionBank() })
+        return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun questionBankItemCard(item: QuestionBankItem): View {
+        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        top.addView(ui.label(item.question.prompt, 16, ColorToken.Ink, true), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        top.addView(ui.statusPill(item.level, ColorToken.Primary))
+        box.addView(top)
+        box.addView(ui.body("${item.unit}｜${item.skill}｜${item.source}", ColorToken.Muted).apply { setPadding(0, ui.dp(7), 0, 0) })
+        box.addView(ui.body("答案：${item.question.answer}\n提示：${item.question.repairHint}", "#334155"))
+        box.setOnClickListener {
+            val index = questions.indexOfFirst { it.prompt == item.question.prompt && it.answer == item.question.answer }
+            if (index >= 0) {
+                currentQuestionIndex = index
+                renderLesson()
+            }
+        }
+        return ui.margins(box, 0, 8, 0, 8)
     }
 
     private fun cloudBackendStatusCard(): View {

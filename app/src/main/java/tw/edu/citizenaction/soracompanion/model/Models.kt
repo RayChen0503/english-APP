@@ -2,7 +2,7 @@ package tw.edu.citizenaction.soracompanion.model
 
 enum class Role { Student, Mentor }
 
-enum class Screen { Home, CheckIn, Lesson, AiCoach, Breakpoints, Handoff, Map, Roster, Mentor, Report, Profile, Journey, Intervention, HelpRequest, StudentDetail, Contract, Reflection, ActionQueue, Account, StudentManager, AiLab, SyncCenter }
+enum class Screen { Home, CheckIn, Lesson, AiCoach, Breakpoints, Handoff, Map, Roster, Mentor, Report, Profile, Journey, Intervention, HelpRequest, StudentDetail, Contract, Reflection, ActionQueue, Account, StudentManager, AiLab, SyncCenter, QuestionBank }
 
 enum class Mood(
     val label: String,
@@ -45,6 +45,16 @@ data class Question(
     val concept: String,
     val type: String = "選擇題",
     val repairHint: String = explanation
+)
+
+data class QuestionBankItem(
+    val id: String,
+    val level: String,
+    val unit: String,
+    val skill: String,
+    val source: String,
+    val question: Question,
+    val updatedAt: Long = System.currentTimeMillis()
 )
 
 data class Breakpoint(

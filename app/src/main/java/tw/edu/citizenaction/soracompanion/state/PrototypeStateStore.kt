@@ -9,6 +9,8 @@ import tw.edu.citizenaction.soracompanion.model.CollaborationNote
 import tw.edu.citizenaction.soracompanion.model.LocalAccount
 import tw.edu.citizenaction.soracompanion.model.Mood
 import tw.edu.citizenaction.soracompanion.model.OfflineSyncItem
+import tw.edu.citizenaction.soracompanion.model.Question
+import tw.edu.citizenaction.soracompanion.model.QuestionBankItem
 import tw.edu.citizenaction.soracompanion.storage.EnglishPlusDatabase
 import tw.edu.citizenaction.soracompanion.storage.LearningEvent
 import tw.edu.citizenaction.soracompanion.storage.StorageSnapshot
@@ -147,6 +149,18 @@ class PrototypeStateStore(context: Context) {
         return database.loadOfflineSyncItems(limit)
     }
 
+    fun seedQuestionBank(items: List<QuestionBankItem>) {
+        database.seedQuestionBank(items)
+    }
+
+    fun questionBankItems(limit: Int = 80): List<QuestionBankItem> {
+        return database.loadQuestionBank(limit)
+    }
+
+    fun questionBankQuestions(): List<Question> {
+        return database.loadQuestionBank(80).map { it.question }
+    }
+
     fun markOfflineSyncItemsSynced() {
         database.markOfflineSyncItemsSynced()
     }
@@ -204,6 +218,22 @@ class PrototypeStateStore(context: Context) {
                     .put("title", event.title)
                     .put("detail", event.detail)
                     .put("createdAt", event.createdAt)
+            }))
+            .put("questionBank", JSONArray(database.loadQuestionBank().map { item ->
+                JSONObject()
+                    .put("id", item.id)
+                    .put("level", item.level)
+                    .put("unit", item.unit)
+                    .put("skill", item.skill)
+                    .put("source", item.source)
+                    .put("prompt", item.question.prompt)
+                    .put("options", JSONArray(item.question.options))
+                    .put("answer", item.question.answer)
+                    .put("explanation", item.question.explanation)
+                    .put("concept", item.question.concept)
+                    .put("type", item.question.type)
+                    .put("repairHint", item.question.repairHint)
+                    .put("updatedAt", item.updatedAt)
             }))
             .put("collaborationNotes", JSONArray(database.loadCollaborationNotes().map { note ->
                 JSONObject()

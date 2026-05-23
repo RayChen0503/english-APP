@@ -14,6 +14,7 @@ import tw.edu.citizenaction.soracompanion.model.HandoffPriority
 import tw.edu.citizenaction.soracompanion.model.HelpRequestOption
 import tw.edu.citizenaction.soracompanion.model.MentorCheck
 import tw.edu.citizenaction.soracompanion.model.Question
+import tw.edu.citizenaction.soracompanion.model.QuestionBankItem
 import tw.edu.citizenaction.soracompanion.model.ReflectionPrompt
 import tw.edu.citizenaction.soracompanion.model.SyncRecord
 import tw.edu.citizenaction.soracompanion.model.StudyTask
@@ -53,6 +54,49 @@ object PrototypeRepository {
         Question("選出主詞：The boy is reading a book.", listOf("The boy", "reading", "a book"), "The boy", "主詞通常是句子裡正在做動作的人或東西。", "閱讀拆句", "閱讀題", "先不要翻整句，只找誰在做事。"),
         Question("聽力暖身：I am fine. 這句最接近哪個意思？", listOf("我很好", "我很晚", "我在找東西"), "我很好", "I am fine 是最常見的狀態表達。", "聽力暖身", "聽力題", "先抓 fine 這個關鍵字，不需要每個字都懂。"),
         Question("字彙：usually 最接近哪個意思？", listOf("通常", "突然", "最後"), "通常", "usually 表示通常、平常。", "會考高頻字", "字彙題", "把 usually 和平常做的事連在一起。")
+    )
+
+    val questionBankItems = listOf(
+        QuestionBankItem("b1-u1-001", "A1", "be 動詞暖身", "句型修復", "English+ seed", questions[0]),
+        QuestionBankItem("b1-u1-002", "A1", "be 動詞暖身", "句型修復", "English+ seed", questions[1]),
+        QuestionBankItem("b1-u1-003", "A1", "be 動詞暖身", "句型修復", "English+ seed", questions[2]),
+        QuestionBankItem("b1-u1-004", "A1", "be 動詞暖身", "句型修復", "English+ seed", questions[3]),
+        QuestionBankItem("b1-u1-005", "A1", "be 動詞暖身", "句型修復", "English+ seed", questions[4]),
+        QuestionBankItem("r1-u1-001", "A1", "閱讀拆句", "閱讀理解", "English+ seed", questions[5]),
+        QuestionBankItem("l1-u1-001", "A1", "聽力暖身", "聽力理解", "English+ seed", questions[6]),
+        QuestionBankItem("v1-u1-001", "A1", "會考高頻字", "字彙判斷", "English+ seed", questions[7]),
+        QuestionBankItem(
+            "b1-u2-001",
+            "A1",
+            "現在式入門",
+            "句型修復",
+            "English+ seed",
+            Question("My brother ___ tall.", listOf("is", "are", "am"), "is", "My brother 是一個人，所以搭配 is。", "第三人稱單數", "句型修復", "先找主詞 My brother，再判斷是一個人。")
+        ),
+        QuestionBankItem(
+            "v1-u2-001",
+            "A1",
+            "校園生活字彙",
+            "字彙判斷",
+            "English+ seed",
+            Question("library 最接近哪個意思？", listOf("圖書館", "操場", "餐廳"), "圖書館", "library 是圖書館，常和 book、read 連在一起。", "校園高頻字", "字彙題", "把 library 和 books 放在一起記。")
+        ),
+        QuestionBankItem(
+            "r1-u2-001",
+            "A1",
+            "短句閱讀",
+            "閱讀理解",
+            "English+ seed",
+            Question("Tom plays basketball after school. Tom 放學後做什麼？", listOf("打籃球", "看電視", "寫信"), "打籃球", "plays basketball 表示打籃球。", "短句抓關鍵字", "閱讀題", "先抓 Tom 和 basketball，不需要每個字都翻。")
+        ),
+        QuestionBankItem(
+            "l1-u2-001",
+            "A1",
+            "生活聽力",
+            "聽力理解",
+            "English+ seed",
+            Question("聽力暖身：Thank you. 最自然的回應是？", listOf("You're welcome.", "Good night.", "I'm sorry."), "You're welcome.", "別人說謝謝時，常用 You're welcome 回應。", "生活對話", "聽力題", "把 Thank you 和 You're welcome 當一組。")
+        )
     )
 
     fun initialBreakpoints(): MutableList<Breakpoint> = mutableListOf(
