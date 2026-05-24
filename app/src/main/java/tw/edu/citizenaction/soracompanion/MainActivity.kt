@@ -2,6 +2,7 @@ package tw.edu.citizenaction.soracompanion
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -887,6 +888,7 @@ class MainActivity : Activity() {
         handoffPriorities.forEach { root.addView(priorityCard(it)) }
         section("最新協作紀錄")
         recentCollaborationNotes(4).forEach { root.addView(collaborationNoteCard(it)) }
+        root.addView(ui.secondaryButton("分享最新老師報告") { shareTeacherReport(buildDemoReportText()) })
         root.addView(ui.secondaryButton("查看待辦處理佇列") { renderActionQueue() })
         root.addView(ui.primaryButton("查看陪伴腳本") { renderMentorScript() })
         bottomNav()
@@ -1324,9 +1326,60 @@ class MainActivity : Activity() {
         val targetDir = getExternalFilesDir(null) ?: filesDir
         val file = File(targetDir, "english_plus_demo_report.txt")
         file.writeText(reportText, Charsets.UTF_8)
+        writeDemoReportHtml(reportText)
         recordLearningEvent("report_export", "已匯出展示報告", file.absolutePath)
         addOfflineSyncItem("展示報告匯出", "報告資料", "已產生 english_plus_demo_report.txt，待正式版上傳到雲端或分享給老師。")
         return file
+    }
+
+    private fun writeDemoReportHtml(reportText: String): File {
+        val targetDir = getExternalFilesDir(null) ?: filesDir
+        val file = File(targetDir, "english_plus_teacher_report.html")
+        file.writeText(buildDemoReportHtml(reportText), Charsets.UTF_8)
+        recordLearningEvent("report_export_html", "已匯出 HTML 老師報告", file.absolutePath)
+        return file
+    }
+
+    private fun buildDemoReportHtml(reportText: String): String {
+        val escaped = reportText
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        return """
+            <!doctype html>
+            <html lang="zh-Hant">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <title>English+ Teacher Report</title>
+              <style>
+                body { font-family: sans-serif; margin: 32px; color: #102033; line-height: 1.65; }
+                header { border-bottom: 3px solid #246BFD; margin-bottom: 24px; padding-bottom: 16px; }
+                h1 { margin: 0 0 8px; font-size: 28px; }
+                .meta { color: #64748b; font-size: 14px; }
+                pre { white-space: pre-wrap; background: #f8fafc; border: 1px solid #dbe3ef; border-radius: 12px; padding: 18px; }
+                .note { margin-top: 18px; color: #475569; font-size: 13px; }
+              </style>
+            </head>
+            <body>
+              <header>
+                <h1>English+ 老師週報</h1>
+                <div class="meta">學生：${student.name}｜班級：${currentAccount().classCode}</div>
+              </header>
+              <pre>$escaped</pre>
+              <div class="note">此 HTML 可由瀏覽器列印成 PDF；正式版可改由後端產生 PDF、Word 與老師後台報表。</div>
+            </body>
+            </html>
+        """.trimIndent()
+    }
+
+    private fun shareTeacherReport(reportText: String) {
+        val share = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "English+ 老師週報")
+            putExtra(Intent.EXTRA_TEXT, reportText)
+        }
+        startActivity(Intent.createChooser(share, "分享 English+ 老師週報"))
     }
 
     private fun shell(title: String, subtitle: String) {
