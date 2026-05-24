@@ -5,6 +5,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import tw.edu.citizenaction.soracompanion.auth.AuthContract
 import tw.edu.citizenaction.soracompanion.auth.AuthSession
+import tw.edu.citizenaction.soracompanion.cloud.CloudDataContract
 import tw.edu.citizenaction.soracompanion.model.AppState
 import tw.edu.citizenaction.soracompanion.model.CollaborationNote
 import tw.edu.citizenaction.soracompanion.model.LocalAccount
@@ -187,10 +188,29 @@ class PrototypeStateStore(context: Context) {
     fun cloudSyncPayload(deviceLabel: String): JSONObject {
         val state = load()
         val snapshot = storageSnapshot()
+        val accounts = database.loadAccounts(emptyList())
+        val selectedAccount = accounts.firstOrNull { it.displayName == state.selectedAccountName }
+        val scope = CloudDataContract.buildScope(
+            classCode = selectedAccount?.classCode ?: deviceLabel,
+            accountName = state.selectedAccountName,
+            roleLabel = selectedAccount?.roleLabel ?: AuthContract.ROLE_STUDENT
+        )
+        val metadata = CloudDataContract.buildSyncMetadata(scope, deviceLabel)
         val payload = JSONObject()
-            .put("schemaVersion", 1)
+            .put("schemaVersion", CloudDataContract.SCHEMA_VERSION)
             .put("app", "English+")
             .put("deviceLabel", deviceLabel)
+            .put("classId", scope.classId)
+            .put("userId", scope.userId)
+            .put("roleLabel", scope.roleLabel)
+            .put("cloudPaths", JSONObject()
+                .put("class", scope.classDocumentPath)
+                .put("student", scope.studentDocumentPath)
+                .put("collaboration", scope.collaborationCollectionPath)
+                .put("questionBank", scope.questionBankCollectionPath)
+            )
+            .put("collections", JSONArray(CloudDataContract.syncedCollections))
+            .put("metadata", JSONObject(metadata))
             .put("exportedAt", System.currentTimeMillis())
             .put(
                 "state",

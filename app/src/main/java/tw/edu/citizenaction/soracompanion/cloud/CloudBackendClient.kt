@@ -18,11 +18,14 @@ class CloudBackendClient(private val endpoint: String) {
     }
 
     fun fetchCollaboration(classCode: String, since: Long): JSONObject {
+        val scope = CloudDataContract.buildScope(classCode, "remote-collaboration", "老師")
         val body = JSONObject()
             .put("action", "fetchCollaboration")
             .put("type", "collaboration_feed")
-            .put("schemaVersion", 1)
+            .put("schemaVersion", CloudDataContract.SCHEMA_VERSION)
             .put("classCode", classCode)
+            .put("classId", scope.classId)
+            .put("collectionPath", scope.collaborationCollectionPath)
             .put("since", since)
             .put("app", "English+")
         val result = post(body)
@@ -39,7 +42,7 @@ class CloudBackendClient(private val endpoint: String) {
             JSONObject()
                 .put("action", "pushCollaboration")
                 .put("type", "collaboration_push")
-                .put("schemaVersion", 1)
+                .put("schemaVersion", CloudDataContract.SCHEMA_VERSION)
                 .put("app", "English+")
                 .put("payload", payload)
         )
