@@ -404,7 +404,51 @@ class MainActivity : Activity() {
         shell("產品設計原則", "把課程提案翻成可被檢核的功能")
         root.addView(card("v0.6 檢核方向", "這頁用來確認我們做的不是單純英文練習 app，而是面向偏鄉學生、情緒斷點與雙軌接力的學習平台。", ColorToken.PrimarySoft))
         designPrinciples.forEach { root.addView(principleCard(it)) }
+        root.addView(ui.secondaryButton("查看 English+ 設計系統") { renderDesignSystem() })
         root.addView(ui.primaryButton("查看 OPPM 品質檢核") { renderMentorChecks() })
+        bottomNav()
+    }
+
+    private fun renderDesignSystem() {
+        screen = Screen.DesignSystem
+        shell("English+ 設計系統", "把目前 UI 收斂成可檢查、可延伸、可交接的產品規格")
+        root.addView(card(
+            "設計方向",
+            "English+ 不是考試壓力型題庫，而是低壓、清楚、有接力感的偏鄉英語學習工具。所有畫面先讓學生知道今天做什麼，再讓老師與志工看見可行動的證據。",
+            ColorToken.PrimarySoft
+        ))
+        root.addView(metricRow(
+            Metric("圓角", "8dp", ColorToken.Primary),
+            Metric("基準間距", "8pt", ColorToken.Success),
+            Metric("觸控高度", "48+", ColorToken.Accent)
+        ))
+        section("色彩 token")
+        root.addView(designTokenCard("Ink", ColorToken.Ink, "主要標題與重要資訊，避免整頁太淡而失去方向感。", ColorToken.Ink))
+        root.addView(designTokenCard("Primary", ColorToken.Primary, "主要行動、目前所在狀態、可繼續前進的提示。", ColorToken.Primary))
+        root.addView(designTokenCard("Accent", ColorToken.Accent, "時間、節奏、短任務提醒，不當作危險警示使用。", ColorToken.Accent))
+        root.addView(designTokenCard("Success / Warning / Danger", "${ColorToken.Success} / ${ColorToken.Warning} / ${ColorToken.Danger}", "用於學習修復、待追蹤、需要真人接力的狀態。", ColorToken.Success))
+        section("字級與資訊層級")
+        root.addView(designSpecCard("Screen title", "28sp bold", "每頁只保留一個主標題，回答使用者現在在哪裡。", ColorToken.PrimarySoft))
+        root.addView(designSpecCard("Card title", "17-20sp bold", "卡片標題要能單獨掃讀，讓老師快速找出斷點與下一步。", ColorToken.Card))
+        root.addView(designSpecCard("Body copy", "15sp / line +4dp", "學生端文字保持短句，避免大段說明造成第二次挫折。", ColorToken.Card))
+        section("元件規格")
+        root.addView(designSpecCard("Primary button", "52dp min height", "只放最推薦的下一步，例如開始任務、生成摘要、匯出報告。", ColorToken.PrimarySoft))
+        root.addView(designSpecCard("Secondary button", "48dp min height", "用於替代路徑與回到前一個工作區，不搶走主行動。", ColorToken.Card))
+        root.addView(designSpecCard("Status pill", "12sp / soft fill", "標示狀態，不用長句解釋功能；顏色要對應真實風險。", ColorToken.SuccessSoft))
+        root.addView(designSpecCard("Information card", "20dp padding", "一張卡只承載一個判斷：情緒、任務、斷點、接力或報告證據。", ColorToken.Card))
+        section("螢幕檢核清單")
+        root.addView(card(
+            "手機優先",
+            "先檢查 360dp 與 412dp 寬度：按鈕文字不能截斷、底部導覽不能擠壓、卡片不能互相包卡片、長中文要能自然換行。",
+            ColorToken.WarningSoft
+        ))
+        root.addView(card(
+            "產品一致性",
+            "學生端維持低壓與短任務；老師/志工端維持證據、接力、追蹤。任何新功能都要先判斷放在哪一軌，不混在同一張卡裡。",
+            ColorToken.VioletSoft
+        ))
+        root.addView(ui.primaryButton("回產品設計原則") { renderDesignPrinciples() })
+        root.addView(ui.secondaryButton("回首頁") { renderHome() })
         bottomNav()
     }
 
@@ -645,6 +689,7 @@ class MainActivity : Activity() {
         root.addView(card("本週總覽", "完成微任務：$completedTasks\n信心值：$confidence%\n目前重點：${modules[1].title}", ColorToken.PrimarySoft))
         root.addView(storageStatusCard())
         root.addView(questionBankSummaryCard())
+        root.addView(ui.secondaryButton("查看 UI 設計系統") { renderDesignSystem() })
         modules.forEach { root.addView(moduleCard(it)) }
         section("學習紀錄時間線")
         root.addView(timelineCard("今日答題紀錄", "已累積 ${learningEventCount} 筆學習事件，包含答題、反思、求助與修復。", ColorToken.Primary))
@@ -2398,6 +2443,41 @@ class MainActivity : Activity() {
         box.addView(ui.body("AI：${item.aiAction}", "#475569"))
         box.addView(ui.body("真人接力：${item.mentorAction}", ColorToken.Success))
         return ui.margins(box, 0, 8, 0, 8)
+    }
+
+    private fun designTokenCard(name: String, value: String, role: String, color: String): View {
+        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val swatch = View(this).apply {
+            background = ui.rounded(color, color)
+            layoutParams = LinearLayout.LayoutParams(ui.dp(44), ui.dp(44)).apply {
+                setMargins(0, 0, ui.dp(12), 0)
+            }
+        }
+        row.addView(swatch)
+        val textGroup = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        textGroup.addView(ui.label(name, 17, ColorToken.Ink, true))
+        textGroup.addView(ui.body(value, ColorToken.Muted))
+        row.addView(textGroup, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        box.addView(row)
+        box.addView(ui.body(role, "#334155").apply { setPadding(0, ui.dp(10), 0, 0) })
+        return ui.margins(box, 0, 6, 0, 8)
+    }
+
+    private fun designSpecCard(title: String, spec: String, usage: String, fill: String): View {
+        val box = ui.container(fill, ColorToken.Border)
+        val top = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        top.addView(ui.label(title, 17, ColorToken.Ink, true), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        top.addView(ui.statusPill(spec, ColorToken.Primary))
+        box.addView(top)
+        box.addView(ui.body(usage, "#334155").apply { setPadding(0, ui.dp(10), 0, 0) })
+        return ui.margins(box, 0, 6, 0, 8)
     }
 
     private fun metricRow(a: Metric, b: Metric, c: Metric): View {
