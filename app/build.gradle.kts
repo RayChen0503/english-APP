@@ -24,3 +24,7 @@ android {
         jvmTarget = "1.8"
     }
 }
+
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+}
