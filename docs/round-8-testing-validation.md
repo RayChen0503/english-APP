@@ -2,6 +2,17 @@
 
 This round adds repeatable validation for the English+ Android prototype.
 
+## Executable Validation Contract
+
+The app now includes `ValidationContract` with `VALIDATION_SCHEMA_VERSION = 8`.
+
+It defines:
+
+- required automated Gradle checks
+- manual smoke-test flows
+- release-readiness blockers
+- the rule that a classroom/store candidate is blocked until automated checks, manual smoke test, and physical-device testing all pass
+
 ## Automated Checks
 
 Run from the project root:
@@ -9,7 +20,7 @@ Run from the project root:
 ```powershell
 $env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
 $env:PATH="$env:JAVA_HOME\bin;$env:PATH"
-.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug --console=plain
+.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --console=plain
 ```
 
 ### Unit Test Coverage
@@ -42,6 +53,7 @@ Use Android Studio Run on a virtual or physical device:
 7. Open question bank and confirm levels, skills, and items render.
 8. Open report export and confirm the preview includes learning, support, sync, and question-bank evidence.
 9. Open product design principles and the new design system screen.
+10. Confirm the app can be closed and reopened without losing local progress.
 
 ## Known Limits
 
