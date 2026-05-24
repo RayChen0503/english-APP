@@ -21,6 +21,7 @@ import tw.edu.citizenaction.soracompanion.ai.AiSupportResult
 import tw.edu.citizenaction.soracompanion.ai.AiProxyClient
 import tw.edu.citizenaction.soracompanion.ai.OpenAiClient
 import tw.edu.citizenaction.soracompanion.auth.AuthClient
+import tw.edu.citizenaction.soracompanion.auth.AuthContract
 import tw.edu.citizenaction.soracompanion.auth.AuthSession
 import tw.edu.citizenaction.soracompanion.cloud.CloudBackendClient
 import tw.edu.citizenaction.soracompanion.cloud.CloudSyncResult
@@ -129,7 +130,7 @@ class MainActivity : Activity() {
         managedStudentCount = saved.managedStudentCount
         offlinePendingCount = saved.offlinePendingCount
         selectedAccountName = saved.selectedAccountName
-        role = if (currentAccount().roleLabel == "學生") Role.Student else Role.Mentor
+        role = if (AuthContract.isStudentRole(currentAccount().roleLabel)) Role.Student else Role.Mentor
         mentorReplyCount = saved.mentorReplyCount
         learningEventCount = saved.learningEventCount
         repairedMistakeCount = saved.repairedMistakeCount
@@ -206,7 +207,7 @@ class MainActivity : Activity() {
 
     private fun selectAccount(account: LocalAccount) {
         selectedAccountName = account.displayName
-        role = if (account.roleLabel == "學生") Role.Student else Role.Mentor
+        role = if (AuthContract.isStudentRole(account.roleLabel)) Role.Student else Role.Mentor
         stateStore.markAccountUsed(account.displayName)
         persistState()
         recordLearningEvent("account_login", "切換登入：${account.displayName}", "角色：${account.roleLabel}｜班級/群組：${account.classCode}")
@@ -306,11 +307,12 @@ class MainActivity : Activity() {
         val account = currentAccount()
         shell("登入與班級資料", "本機展示帳號與雲端登入可並存")
         root.addView(card("目前登入", "${account.displayName}｜${account.roleLabel}\n班級/群組：${account.classCode}\n${account.loginState}", ColorToken.PrimarySoft))
+        root.addView(accountReadinessCard())
         root.addView(remoteAuthStatusCard())
         root.addView(remoteAuthLoginCard())
         accountList().forEach { root.addView(accountCard(it)) }
         root.addView(ui.secondaryButton("切換到老師/志工端") {
-            val teacher = accountList().firstOrNull { it.roleLabel != "學生" } ?: account
+            val teacher = accountList().firstOrNull { AuthContract.isStaffRole(it.roleLabel) } ?: account
             selectAccount(teacher)
             renderHome()
         })
@@ -346,7 +348,7 @@ class MainActivity : Activity() {
     private fun renderRemoteLoginSuccess(session: AuthSession) {
         stateStore.saveAuthSession(session)
         selectedAccountName = session.displayName
-        role = if (session.roleLabel == "學生") Role.Student else Role.Mentor
+        role = if (AuthContract.isStudentRole(session.roleLabel)) Role.Student else Role.Mentor
         persistState()
         addOfflineSyncItem("雲端登入成功：${session.displayName}", "正式登入", "角色 ${session.roleLabel} / 班級 ${session.classCode}", "已同步")
         recordLearningEvent("remote_login", "雲端登入成功", "${session.displayName} / ${session.roleLabel} / ${session.classCode}")
@@ -1470,12 +1472,12 @@ class MainActivity : Activity() {
     private fun roleSwitch(): View {
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         row.addView(ui.chipButton("學生端", role == Role.Student) {
-            val studentAccount = accountList().firstOrNull { it.roleLabel == "學生" } ?: currentAccount()
+            val studentAccount = accountList().firstOrNull { AuthContract.isStudentRole(it.roleLabel) } ?: currentAccount()
             selectAccount(studentAccount)
             renderHome()
         })
         row.addView(ui.chipButton("老師/志工端", role == Role.Mentor) {
-            val mentorAccount = accountList().firstOrNull { it.roleLabel != "學生" } ?: currentAccount()
+            val mentorAccount = accountList().firstOrNull { AuthContract.isStaffRole(it.roleLabel) } ?: currentAccount()
             selectAccount(mentorAccount)
             renderHome()
         })
@@ -1802,10 +1804,10 @@ class MainActivity : Activity() {
 
     private fun classContextCard(): View {
         val account = currentAccount()
-        val fill = if (account.roleLabel == "學生") ColorToken.PrimarySoft else ColorToken.SuccessSoft
-        val color = if (account.roleLabel == "學生") ColorToken.Primary else ColorToken.Success
+        val fill = if (AuthContract.isStudentRole(account.roleLabel)) ColorToken.PrimarySoft else ColorToken.SuccessSoft
+        val color = if (AuthContract.isStudentRole(account.roleLabel)) ColorToken.Primary else ColorToken.Success
         val box = ui.container(fill, ColorToken.Border)
-        box.addView(ui.statusPill("本機登入", color))
+        box.addView(ui.statusPill(if (stateStore.hasRemoteAuthEndpoint()) "正式登入準備" else "展示登入", color))
         box.addView(ui.label("${account.displayName}｜${account.roleLabel}", 17, ColorToken.Ink, true).apply {
             setPadding(0, ui.dp(10), 0, ui.dp(4))
         })
@@ -1824,6 +1826,27 @@ class MainActivity : Activity() {
             setPadding(0, ui.dp(12), 0, ui.dp(4))
         })
         box.addView(ui.body("${stateStore.authSessionSummary()}\n\n端點：${stateStore.remoteAuthEndpoint().ifBlank { "尚未設定" }}", "#334155"))
+        return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun accountReadinessCard(): View {
+        val accounts = accountList()
+        val studentCount = accounts.count { AuthContract.isStudentRole(it.roleLabel) }
+        val staffCount = accounts.count { AuthContract.isStaffRole(it.roleLabel) }
+        val endpointState = if (stateStore.hasRemoteAuthEndpoint()) "已設定" else "待設定"
+        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        box.addView(ui.statusPill("第二輪帳號正式化", ColorToken.Primary))
+        box.addView(ui.label("角色與登入狀態", 18, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body(
+            "學生帳號：$studentCount\n老師/志工帳號：$staffCount\n正式登入端點：$endpointState\n支援路線：Firebase Auth、Google Sign-In、校內 SSO 後端代理",
+            "#334155"
+        ))
+        box.addView(ui.body(
+            "目前仍保留 demo mode，避免沒有 Firebase 專案時展示流程中斷；正式上線時，demo 帳號會降級為測試模式。",
+            ColorToken.Muted
+        ).apply { setPadding(0, ui.dp(8), 0, 0) })
         return ui.margins(box, 0, 8, 0, 12)
     }
 

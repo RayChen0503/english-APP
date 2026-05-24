@@ -3,6 +3,7 @@ package tw.edu.citizenaction.soracompanion.state
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import tw.edu.citizenaction.soracompanion.auth.AuthContract
 import tw.edu.citizenaction.soracompanion.auth.AuthSession
 import tw.edu.citizenaction.soracompanion.model.AppState
 import tw.edu.citizenaction.soracompanion.model.CollaborationNote
@@ -59,10 +60,11 @@ class PrototypeStateStore(context: Context) {
 
     fun hasRemoteAuthEndpoint(): Boolean {
         val url = remoteAuthEndpoint()
-        return url.startsWith("https://") || url.startsWith("http://")
+        return AuthContract.isValidEndpoint(url)
     }
 
     fun saveAuthSession(session: AuthSession) {
+        val roleLabel = AuthContract.normalizeRole(session.roleLabel)
         val tokenPreview = if (session.token.length > 8) {
             "${session.token.take(4)}...${session.token.takeLast(4)}"
         } else if (session.token.isBlank()) {
@@ -72,7 +74,7 @@ class PrototypeStateStore(context: Context) {
         }
         prefs.edit()
             .putString("remote_auth_display_name", session.displayName)
-            .putString("remote_auth_role_label", session.roleLabel)
+            .putString("remote_auth_role_label", roleLabel)
             .putString("remote_auth_class_code", session.classCode)
             .putString("remote_auth_token", session.token)
             .putString("remote_auth_token_preview", tokenPreview)
@@ -81,7 +83,7 @@ class PrototypeStateStore(context: Context) {
         database.saveAccount(
             LocalAccount(
                 displayName = session.displayName,
-                roleLabel = session.roleLabel,
+                roleLabel = roleLabel,
                 classCode = session.classCode,
                 loginState = "雲端登入：${session.provider} / $tokenPreview"
             )

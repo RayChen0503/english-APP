@@ -16,21 +16,29 @@ data class AuthSession(
 )
 
 class AuthClient(private val endpoint: String) {
-    fun login(username: String, password: String, classCode: String): AuthSession {
-        val body = JSONObject()
-            .put("username", username)
-            .put("password", password)
-            .put("classCode", classCode)
-            .put("app", "English+")
+    fun login(
+        username: String,
+        password: String,
+        classCode: String,
+        provider: String = AuthContract.PROVIDER_SCHOOL
+    ): AuthSession {
+        val problems = AuthContract.validateLoginInput(username, password, classCode)
+        if (problems.isNotEmpty()) {
+            throw IllegalArgumentException(problems.joinToString("; "))
+        }
+        if (!AuthContract.isValidEndpoint(endpoint)) {
+            throw IllegalArgumentException("Auth endpoint must be HTTPS or a local development URL")
+        }
 
-        val response = postJson(body)
+        val response = postJson(AuthContract.buildLoginPayload(username, password, classCode, provider))
         val json = JSONObject(response.ifBlank { "{}" })
+        val rawProvider = json.optString("provider", provider)
         return AuthSession(
-            displayName = json.optString("displayName", username),
-            roleLabel = json.optString("roleLabel", inferRole(username)),
-            classCode = json.optString("classCode", classCode.ifBlank { "REMOTE-AUTH" }),
+            displayName = json.optString("displayName", username.trim()),
+            roleLabel = AuthContract.normalizeRole(json.optString("roleLabel", inferRole(username))),
+            classCode = json.optString("classCode", classCode.trim().ifBlank { "REMOTE-AUTH" }),
             token = json.optString("token", json.optString("idToken", "")),
-            provider = json.optString("provider", "校內/Firebase 後端")
+            provider = AuthContract.providerDisplayName(rawProvider)
         )
     }
 
@@ -63,9 +71,9 @@ class AuthClient(private val endpoint: String) {
     private fun inferRole(username: String): String {
         val lower = username.lowercase()
         return when {
-            lower.contains("teacher") || lower.contains("老師") -> "老師"
-            lower.contains("mentor") || lower.contains("volunteer") -> "雲端志工"
-            else -> "學生"
+            lower.contains("teacher") -> AuthContract.ROLE_TEACHER
+            lower.contains("mentor") || lower.contains("volunteer") -> AuthContract.ROLE_VOLUNTEER
+            else -> AuthContract.ROLE_STUDENT
         }
     }
 }
