@@ -25,6 +25,7 @@ import tw.edu.citizenaction.soracompanion.auth.AuthContract
 import tw.edu.citizenaction.soracompanion.auth.AuthSession
 import tw.edu.citizenaction.soracompanion.cloud.CloudBackendClient
 import tw.edu.citizenaction.soracompanion.cloud.CloudSyncResult
+import tw.edu.citizenaction.soracompanion.cloud.QuestionBankContract
 import tw.edu.citizenaction.soracompanion.data.PrototypeRepository
 import tw.edu.citizenaction.soracompanion.model.ActionItem
 import tw.edu.citizenaction.soracompanion.model.AiScenario
@@ -720,6 +721,11 @@ class MainActivity : Activity() {
             Metric("程度", levelCounts.keys.joinToString("/").ifBlank { "A1" }, ColorToken.Accent)
         ))
         root.addView(card("題庫導入狀態", "目前練習流程已改由 SQLite 題庫載入。這一版先建立正式題庫資料表、種子題、分類檢視與後續後台/API 匯入接口的資料結構。", ColorToken.PrimarySoft))
+        root.addView(card(
+            "第五輪正式題庫規則",
+            "題庫已加入 schema v${QuestionBankContract.QUESTION_BANK_SCHEMA_VERSION}、importId、審核狀態與匯入批次。老師端可以發布正式題目；學生端維持唯讀，避免未審題目進入練習。",
+            ColorToken.SuccessSoft
+        ))
         section("技能分類")
         skillCounts.forEach { (skill, count) ->
             root.addView(timelineCard(skill, "$count 題｜可作為老師後台篩選與分級派題依據", ColorToken.Primary))
@@ -1731,7 +1737,7 @@ class MainActivity : Activity() {
         top.addView(ui.label(item.question.prompt, 16, ColorToken.Ink, true), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         top.addView(ui.statusPill(item.level, ColorToken.Primary))
         box.addView(top)
-        box.addView(ui.body("${item.unit}｜${item.skill}｜${item.source}", ColorToken.Muted).apply { setPadding(0, ui.dp(7), 0, 0) })
+        box.addView(ui.body("${item.unit}｜${item.skill}｜${item.source}｜${item.reviewState}", ColorToken.Muted).apply { setPadding(0, ui.dp(7), 0, 0) })
         box.addView(ui.body("答案：${item.question.answer}\n提示：${item.question.repairHint}", "#334155"))
         box.setOnClickListener {
             val index = questions.indexOfFirst { it.prompt == item.question.prompt && it.answer == item.question.answer }

@@ -94,6 +94,10 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
         if (oldVersion < 6) {
             createQuestionBankTable(db)
         }
+        if (oldVersion < 7) {
+            addQuestionBankColumn(db, "review_state TEXT NOT NULL DEFAULT 'draft'")
+            addQuestionBankColumn(db, "import_batch_id TEXT NOT NULL DEFAULT 'seed'")
+        }
     }
 
     private fun createLocalAccountsTable(db: SQLiteDatabase) {
@@ -157,10 +161,20 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
                 concept TEXT NOT NULL,
                 type TEXT NOT NULL,
                 repair_hint TEXT NOT NULL,
+                review_state TEXT NOT NULL DEFAULT 'draft',
+                import_batch_id TEXT NOT NULL DEFAULT 'seed',
                 updated_at INTEGER NOT NULL
             )
             """.trimIndent()
         )
+    }
+
+    private fun addQuestionBankColumn(db: SQLiteDatabase, columnSql: String) {
+        try {
+            db.execSQL("ALTER TABLE question_bank ADD COLUMN $columnSql")
+        } catch (_: Exception) {
+            // Existing installs may already have the column after a partial migration.
+        }
     }
 
     fun loadState(): AppState? {
@@ -381,6 +395,8 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
             put("concept", item.question.concept)
             put("type", item.question.type)
             put("repair_hint", item.question.repairHint)
+            put("review_state", item.reviewState)
+            put("import_batch_id", item.importBatchId)
             put("updated_at", item.updatedAt)
         }
         writableDatabase.insertWithOnConflict("question_bank", null, values, SQLiteDatabase.CONFLICT_REPLACE)
@@ -389,7 +405,7 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
     fun loadQuestionBank(limit: Int = 80): List<QuestionBankItem> {
         return readableDatabase.query(
             "question_bank",
-            arrayOf("id", "level", "unit", "skill", "source", "prompt", "options", "answer", "explanation", "concept", "type", "repair_hint", "updated_at"),
+            arrayOf("id", "level", "unit", "skill", "source", "prompt", "options", "answer", "explanation", "concept", "type", "repair_hint", "review_state", "import_batch_id", "updated_at"),
             null,
             null,
             null,
@@ -415,7 +431,9 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
                             type = cursor.getString(cursor.getColumnIndexOrThrow("type")),
                             repairHint = cursor.getString(cursor.getColumnIndexOrThrow("repair_hint"))
                         ),
-                        updatedAt = cursor.getLong(cursor.getColumnIndexOrThrow("updated_at"))
+                        updatedAt = cursor.getLong(cursor.getColumnIndexOrThrow("updated_at")),
+                        reviewState = cursor.getString(cursor.getColumnIndexOrThrow("review_state")),
+                        importBatchId = cursor.getString(cursor.getColumnIndexOrThrow("import_batch_id"))
                     )
                 )
             }
@@ -510,6 +528,6 @@ class EnglishPlusDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME,
 
     companion object {
         private const val DB_NAME = "english_plus_local.db"
-        private const val DB_VERSION = 6
+        private const val DB_VERSION = 7
     }
 }

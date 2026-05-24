@@ -7,6 +7,7 @@ import tw.edu.citizenaction.soracompanion.auth.AuthContract
 import tw.edu.citizenaction.soracompanion.auth.AuthSession
 import tw.edu.citizenaction.soracompanion.cloud.CloudDataContract
 import tw.edu.citizenaction.soracompanion.cloud.CollaborationSyncContract
+import tw.edu.citizenaction.soracompanion.cloud.QuestionBankContract
 import tw.edu.citizenaction.soracompanion.model.AppState
 import tw.edu.citizenaction.soracompanion.model.CollaborationNote
 import tw.edu.citizenaction.soracompanion.model.LocalAccount
@@ -215,8 +216,11 @@ class PrototypeStateStore(context: Context) {
             roleLabel = selectedAccount?.roleLabel ?: AuthContract.ROLE_STUDENT
         )
         val metadata = CloudDataContract.buildSyncMetadata(scope, deviceLabel)
+        val questionBankItems = database.loadQuestionBank()
+        val questionBankMetadata = QuestionBankContract.buildQuestionBankMetadata(scope, questionBankItems)
         val payload = JSONObject()
             .put("schemaVersion", CloudDataContract.SCHEMA_VERSION)
+            .put("questionBankSchemaVersion", QuestionBankContract.QUESTION_BANK_SCHEMA_VERSION)
             .put("app", "English+")
             .put("deviceLabel", deviceLabel)
             .put("classId", scope.classId)
@@ -230,6 +234,7 @@ class PrototypeStateStore(context: Context) {
             )
             .put("collections", JSONArray(CloudDataContract.syncedCollections))
             .put("metadata", JSONObject(metadata))
+            .put("questionBankMetadata", JSONObject(questionBankMetadata))
             .put("exportedAt", System.currentTimeMillis())
             .put(
                 "state",
@@ -260,13 +265,16 @@ class PrototypeStateStore(context: Context) {
                     .put("detail", event.detail)
                     .put("createdAt", event.createdAt)
             }))
-            .put("questionBank", JSONArray(database.loadQuestionBank().map { item ->
+            .put("questionBank", JSONArray(questionBankItems.map { item ->
                 JSONObject()
+                    .put("importId", QuestionBankContract.importId(scope, item))
                     .put("id", item.id)
                     .put("level", item.level)
                     .put("unit", item.unit)
                     .put("skill", item.skill)
                     .put("source", item.source)
+                    .put("reviewState", item.reviewState)
+                    .put("importBatchId", item.importBatchId)
                     .put("prompt", item.question.prompt)
                     .put("options", JSONArray(item.question.options))
                     .put("answer", item.question.answer)

@@ -52,6 +52,39 @@ class CloudBackendClient(private val endpoint: String) {
         )
     }
 
+    fun fetchQuestionBank(classCode: String, since: Long): JSONObject {
+        val scope = CloudDataContract.buildScope(classCode, "question-bank-reader", "teacher")
+        val body = JSONObject()
+            .put("action", "fetchQuestionBank")
+            .put("type", "question_bank_feed")
+            .put("schemaVersion", CloudDataContract.SCHEMA_VERSION)
+            .put("questionBankSchemaVersion", QuestionBankContract.QUESTION_BANK_SCHEMA_VERSION)
+            .put("classCode", classCode)
+            .put("classId", scope.classId)
+            .put("collectionPath", scope.questionBankCollectionPath)
+            .put("since", since)
+            .put("app", "English+")
+        val result = post(body)
+        val responseText = result.responseText.trim()
+        return when {
+            responseText.isBlank() -> JSONObject().put("questionBank", emptyList<String>())
+            responseText.startsWith("[") -> JSONObject().put("questionBank", org.json.JSONArray(responseText))
+            else -> JSONObject(responseText)
+        }
+    }
+
+    fun pushQuestionBank(payload: JSONObject): CloudSyncResult {
+        return post(
+            JSONObject()
+                .put("action", "pushQuestionBank")
+                .put("type", "question_bank_push")
+                .put("schemaVersion", CloudDataContract.SCHEMA_VERSION)
+                .put("questionBankSchemaVersion", QuestionBankContract.QUESTION_BANK_SCHEMA_VERSION)
+                .put("app", "English+")
+                .put("payload", payload)
+        )
+    }
+
     private fun post(payload: JSONObject): CloudSyncResult {
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"

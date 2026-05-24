@@ -54,7 +54,9 @@ data class QuestionBankItem(
     val skill: String,
     val source: String,
     val question: Question,
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val reviewState: String = "draft",
+    val importBatchId: String = "seed"
 )
 
 data class Breakpoint(
