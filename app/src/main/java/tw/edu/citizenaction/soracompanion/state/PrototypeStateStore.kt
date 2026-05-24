@@ -5,6 +5,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import tw.edu.citizenaction.soracompanion.auth.AuthContract
 import tw.edu.citizenaction.soracompanion.auth.AuthSession
+import tw.edu.citizenaction.soracompanion.ai.AiSecurityContract
 import tw.edu.citizenaction.soracompanion.cloud.CloudDataContract
 import tw.edu.citizenaction.soracompanion.cloud.CollaborationSyncContract
 import tw.edu.citizenaction.soracompanion.cloud.QuestionBankContract
@@ -313,6 +314,9 @@ class PrototypeStateStore(context: Context) {
     }
 
     fun hasOpenAiApiKey(): Boolean = openAiApiKey().startsWith("sk-")
+
+    fun aiSecurityDecision(productionMode: Boolean = true) =
+        AiSecurityContract.evaluate(aiProxyEndpoint(), openAiApiKey(), productionMode)
 
     fun saveAiProxyEndpoint(url: String) {
         prefs.edit().putString("ai_proxy_endpoint", url.trim()).apply()

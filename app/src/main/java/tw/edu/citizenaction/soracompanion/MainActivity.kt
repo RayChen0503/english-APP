@@ -1061,6 +1061,7 @@ class MainActivity : Activity() {
         screen = Screen.AiLab
         shell("AI 提示實驗室", "可切換真 OpenAI API 與本機模擬")
         root.addView(openAiStatusCard())
+        root.addView(card("第六輪 API 安全", "正式遠端 AI 只走 HTTPS 後端代理；手機端 Key 僅作開發展示 fallback，不能作為上架方案。", ColorToken.WarningSoft))
         root.addView(aiProxyEndpointCard())
         root.addView(openAiKeyEntryCard())
         root.addView(card("使用方式", "設定 OpenAI API Key 後可呼叫 Responses API 產生診斷、學生語氣回饋與志工接力摘要。沒有 Key 或網路失敗時，仍會保留本機模擬。", ColorToken.WarningSoft))
@@ -1157,6 +1158,12 @@ class MainActivity : Activity() {
     }
 
     private fun renderLiveAiFeedback() {
+        val decision = stateStore.aiSecurityDecision(productionMode = true)
+        if (!decision.canCallRemoteAi) {
+            recordLearningEvent("ai_security_fallback", "Remote AI blocked by security contract", decision.warning)
+            renderGeneratedAiFeedback("第六輪 API 安全檢查：${decision.warning}\n已改用本機模擬，不會從手機端送出正式 OpenAI Key。")
+            return
+        }
         val apiKey = stateStore.openAiApiKey()
         if (!stateStore.hasAiProxyEndpoint() && !stateStore.hasOpenAiApiKey()) {
             recordLearningEvent("ai_fallback", "未設定 OpenAI API Key", "使用本機 AI 模擬回饋。")
