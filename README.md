@@ -1,116 +1,95 @@
 # English+
 
-偏鄉學生雙軌學習平台 Android 原型。第一版聚焦「情緒斷點」：學生卡關時先由 AI 接住，再把整理好的斷點摘要交給雲端志工或老師。
+English+ is an Android prototype for a rural English learning support platform. The product direction is simple: students should not meet English practice as pressure first. The app starts from mood, time, and a small next action, then routes harder emotional or learning breakpoints to AI support, teachers, or volunteers.
 
-## 第一版功能
+## Current Version
 
-- 學生入口：心情檢測、今日 3-5 分鐘任務、錯題回饋、修復任務、學習地圖。
-- 志工/老師入口：學生狀態、卡關斷點、AI 已嘗試提示、建議陪伴語。
-- 本機假資料：先展示完整流程，不串接後端或真 AI。
-- 原生 Android View：避免第一版依賴大量外部 UI 套件。
+- Version name: `0.7.0`
+- Version code: `7`
+- Android application id: `tw.edu.citizenaction.soracompanion`
+- Minimum SDK: `26`
+- Target SDK: `35`
+- Current status: classroom demo / internal testing prototype
 
-## 完整原型版更新
+## What Is Working Now
 
-- 新增學生端儀表板：心情、可用時間、連續學習、今日任務建議。
-- 新增心情與時間檢測流程：依狀態切換一般任務、低壓任務、修復任務。
-- 新增 AI 即時陪伴頁：答錯後先拆解規則，不直接加題。
-- 新增斷點中心：整理錯題證據、AI 已做處理、真人接力建議。
-- 新增志工陪伴腳本：開場語、引導問題、結束紀錄。
-- 新增底部導覽：首頁、任務、斷點、地圖。
-- 新增老師/志工工作台：學生列表、優先關懷、斷點摘要、週報。
-- 新增雲端志工接力摘要：學生狀態、斷點證據、AI 已處理內容、建議陪伴語。
-- 新增本週學習週報：用微任務、斷點修復與求助紀錄取代排行榜壓力。
-- 加入本機狀態變化：心情、任務時間、答題結果、信心值、錯題斷點都會影響畫面。
+- Student and teacher/volunteer tracks.
+- Today-first home screen with low-pressure next actions.
+- Mood and time check-in.
+- Short English practice tasks.
+- Question answering, feedback, and repair hints.
+- Help request flow for emotional or learning breakpoints.
+- AI support lab with local fallback and proxy-ready architecture.
+- Teacher/volunteer handoff board and action queue.
+- Student roster and student detail screens.
+- SQLite persistence for app state, learning events, accounts, collaboration notes, offline sync items, and question bank items.
+- Question bank center with level, unit, skill, and source metadata.
+- Offline task packs and sync center.
+- Cloud backend client scaffolding for future sync and collaboration endpoints.
+- Weekly report and shareable demo report text.
+- Product principles, OPPM checks, and in-app design system.
+- JVM unit tests for repository data and core model invariants.
 
-## v0.5/v0.6 產品原型更新
+## Prototype Limits
 
-- 將單檔原型重構為多檔案架構：
-  - `model/Models.kt`：角色、畫面、心情、學生、任務、斷點等資料模型。
-  - `data/PrototypeRepository.kt`：集中管理展示用假資料。
-  - `state/PrototypeStateStore.kt`：用 SharedPreferences 保存心情、任務時間、信心值與題目進度。
-  - `ui/UiKit.kt`：集中管理卡片、按鈕、文字、間距與圓角樣式。
-  - `MainActivity.kt`：負責畫面流程與互動狀態。
-- 增加產品型互動：答題會改變信心值與微任務數；狀態會保存，下次開啟仍保留。
-- 增加老師端學生列表、斷點摘要、志工接力、陪伴腳本、週報等完整展示路線。
-- 新增老師端學生詳細頁：可從學生列表點進單一學生，查看風險、狀態、斷點與下一步建議。
-- 新增完整使用旅程：從心情檢測、短任務、AI 拆解、志工接力到週報回饋。
-- 新增情緒斷點處理流程：把心情低落、連續答錯、需要真人、完成修復四種情境轉成產品動作。
-- 新增主動求助流程：學生可選擇「看不懂題目、一直答錯、今天很累、沒有穩定網路」，平台會分流到 AI、復原模式、離線任務或志工接力。
-- 新增產品設計原則頁：用來向老師、mentor 或評審說明本原型如何對齊低壓學習、AI+真人雙軌、非排名式成就與偏鄉限制。
-- 新增今日學習契約：學生開始任務前先確認任務邊界，平台承諾不使用排行榜或大量題目壓迫。
-- 新增課後 20 秒反思：完成任務後可選擇自己的感受，平台把它保存為修復證據。
-- 新增老師端待辦處理佇列：把志工、老師、小組成員各自要處理的事項、期限、證據與下一步列出來。
-- 新增離線/同步狀態：在離線任務包中顯示微任務、任務包、志工摘要的同步狀態。
-- 新增本機帳號中心：模擬學生、志工、老師三種展示帳號與班級/群組代碼。
-- 新增學生資料管理：老師端可模擬新增展示學生，並查看學生風險與接力資料。
-- 新增 AI 提示實驗室：用本機規則模擬 AI 診斷、學生語氣回饋、志工接力摘要。
-- 擴充題型：除了 be 動詞選擇題，也加入閱讀拆句、聽力暖身、會考高頻字。
-- 新增離線同步中心：可模擬待上傳紀錄補傳與全部同步。
-- 新增真 AI 串接：AI 提示實驗室可在本機保存 OpenAI API Key，呼叫 Responses API 產生診斷、學生回饋與志工接力摘要；沒有 Key 或呼叫失敗時會回到本機模擬。
-- 保留原生 Android View 實作，讓專案不依賴額外 UI 套件，方便課堂展示與後續接 Firebase / AI API。
+This is not a production release yet. The following areas still need formal implementation before public launch:
 
-## 目前 1-6 大項完成狀態
+- Firebase Auth / Google sign-in or a school account system.
+- Real cloud database and authorization rules.
+- Real-time multi-device collaboration.
+- Production AI proxy with server-side OpenAI key storage.
+- Complete licensed question bank and content management workflow.
+- PDF / Word report export and teacher dashboard.
+- Privacy policy, data safety form, and student data governance.
+- Full Android UI tests, physical-device testing, and multi-screen QA.
 
-- 真實資料功能：已新增 SQLite 本機資料庫，保存 app 狀態、學習事件、本機登入帳號與班級/群組代碼；本機帳號、學生管理與操作結果會持久保存。
-- 真 AI 功能：已可設定 OpenAI API Key 呼叫 Responses API；同時保留依題型變化的本機 AI 模擬作為展示備援。
-- 老師/志工端：已做到學生列表、學生詳細、待辦逐項完成、志工回覆、接力優先序，並新增 SQLite 協作紀錄；尚未做多人即時雲端同步。
-- 學生端學習：已擴充多題型、任務契約、反思、復原任務、學習紀錄時間線；尚未接正式題庫。
-- UI：已補更多狀態卡、流程頁、操作後回饋與時間線；尚未進入正式設計系統。
-- 離線同步：已新增 SQLite 同步佇列、離線任務包下載狀態、待補傳紀錄與全部同步標記；尚未做真網路偵測與雲端補傳。
-- 報告匯出：已新增成果展示總結與文字報告匯出，可產生 `english_plus_demo_report.txt` 作為課堂展示摘要。
+## Build And Test
 
-## 可操作原型追加更新
+Open `D:\SoraCompanion` in Android Studio, wait for Gradle sync, then run the `app` configuration on an Android device or emulator.
 
-- 本機資料庫：新增 `english_plus_local.db`，保存目前狀態與答題、反思、求助、同步等學習事件。
-- 本機登入與班級：學生、志工、老師展示帳號會寫入 SQLite，切換帳號會保存目前角色與班級/群組代碼。
-- 正式登入骨架：帳號中心可設定 Firebase Auth 包裝 API、Google 登入後端或校內帳號 API，成功登入後保存 token 摘要並寫回帳號清單。
-- 學生管理：老師端新增展示學生後，學生會實際出現在清單中。
-- 待辦管理：老師待辦可逐項點擊完成，也可用按鈕標記處理進度。
-- 志工接力：接力摘要頁可新增志工回覆，回覆數會保存並回寫摘要。
-- 學習紀錄：答題、錯題、反思都會增加本機學習事件與待同步數。
-- 錯題修復：答錯後再答對會累積修復紀錄，顯示在學習地圖。
-- AI 模擬：AI 生成頁會依閱讀、聽力、字彙、句型等題型給不同診斷。
-- 真 AI 串接：AI 提示實驗室可輸入 OpenAI API Key，優先使用真 AI，失敗時自動改用本機模擬。
-- 老師/志工協作：志工回覆、陪伴腳本使用、老師待辦處理都會寫入 `collaboration_notes`，並出現在接力優先序、週報與同步中心。
-- 離線與同步：下載任務包、答題紀錄、反思、AI 摘要、協作紀錄會寫入 `offline_sync_items`，同步中心可查看佇列並標記已同步。
-- 展示報告：週報頁可整理產品定位、六輪功能、本週展示資料、情緒斷點、接力與同步狀態，並匯出成 app 專屬文字檔。
-- 雲端後端：同步中心可設定 Firebase Cloud Function、校內 API 或測試 webhook URL，將 SQLite 摘要以 JSON POST 到雲端；成功後會標記本機待同步佇列。
+Command-line verification:
 
-## 專案結構
+```powershell
+$env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
+$env:PATH="$env:JAVA_HOME\bin;$env:PATH"
+.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug --console=plain
+```
+
+Debug APK output:
+
+```text
+app/build/outputs/apk/debug/app-debug.apk
+```
+
+## Release Preparation Notes
+
+The project now has a release build type and a placeholder `proguard-rules.pro`, but it is not signed for store upload yet. A Google Play release will still require:
+
+- Release keystore.
+- Signed Android App Bundle (`.aab`).
+- Play App Signing.
+- Store listing assets.
+- Privacy policy URL.
+- Data Safety answers.
+- Closed/internal testing.
+
+## Project Structure
 
 ```text
 SoraCompanion/
   app/
-    src/main/
-      java/tw/edu/citizenaction/soracompanion/
-        MainActivity.kt
-        data/PrototypeRepository.kt
-        model/Models.kt
-        state/PrototypeStateStore.kt
-        ai/OpenAiClient.kt
-        cloud/CloudBackendClient.kt
-        storage/EnglishPlusDatabase.kt
-        ui/UiKit.kt
-      res/
+    src/main/java/tw/edu/citizenaction/soracompanion/
+      MainActivity.kt
+      ai/
+      auth/
+      cloud/
+      data/
+      model/
+      state/
+      storage/
+      ui/
+    src/test/java/tw/edu/citizenaction/soracompanion/
   docs/
   build.gradle.kts
   settings.gradle.kts
 ```
-
-## 開啟方式
-
-1. 用 Android Studio 開啟 `D:\SoraCompanion`。
-2. 等待 Gradle 同步。
-3. 選擇模擬器或 Android 手機執行 `app`。
-
-目前可用 Android Studio 直接執行。命令列建置時需使用 Android Studio 內建 JBR，已驗證 `:app:assembleDebug` 可以成功產生 debug APK。
-
-## 下一版建議
-
-- 將目前 SQLite 資料層升級為 Room，並把雲端端點改成正式 Firebase/校內後端服務。
-- 串接 Firebase Auth 或校內帳號，讓本機登入流程升級為正式多人登入。
-- 將 OpenAI API Key 移到後端代理保存，避免正式上線時由手機端直接持有 Key。
-- 補學生端登入、班級代碼與老師端班級管理。
-- 補可匯出的志工接力紀錄與週報。
-- 將展示報告從文字檔升級成 PDF/Word，並加入分享功能。
-- 補 UI 測試與實機截圖驗證。
