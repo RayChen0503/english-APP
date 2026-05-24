@@ -57,9 +57,10 @@ class UiKit(private val activity: Activity) {
     }
 
     fun container(fill: String = "#FFFFFF", stroke: String = "#E1E7EF"): LinearLayout {
+        val rules = DesignSystemContract.componentRules()
         return LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(20), dp(20), dp(20))
+            setPadding(dp(rules.cardPaddingDp), dp(rules.cardPaddingDp), dp(rules.cardPaddingDp), dp(rules.cardPaddingDp))
             background = rounded(fill, stroke)
             elevation = dp(2).toFloat()
         }
@@ -75,13 +76,14 @@ class UiKit(private val activity: Activity) {
     }
 
     fun primaryButton(text: String, action: () -> Unit): Button {
+        val rules = DesignSystemContract.componentRules()
         return Button(activity).apply {
             this.text = text
             textSize = 16f
             setAllCaps(false)
             setTextColor(Color.WHITE)
             background = rounded(ColorToken.Primary, ColorToken.Primary)
-            minHeight = dp(52)
+            minHeight = dp(rules.primaryButtonMinHeightDp)
             elevation = dp(2).toFloat()
             setOnClickListener { action() }
             layoutParams = fullWidthParams()
@@ -89,13 +91,14 @@ class UiKit(private val activity: Activity) {
     }
 
     fun secondaryButton(text: String, action: () -> Unit): Button {
+        val rules = DesignSystemContract.componentRules()
         return Button(activity).apply {
             this.text = text
             textSize = 16f
             setAllCaps(false)
             setTextColor(Color.parseColor(ColorToken.Primary))
             background = rounded(ColorToken.PrimarySoft, ColorToken.Border)
-            minHeight = dp(48)
+            minHeight = dp(rules.secondaryButtonMinHeightDp)
             setOnClickListener { action() }
             layoutParams = fullWidthParams()
         }
@@ -115,7 +118,7 @@ class UiKit(private val activity: Activity) {
     }
 
     fun statusPill(text: String, color: String): TextView {
-        return label(text, 12, color, true).apply {
+        return label(text, DesignSystemContract.componentRules().statusPillTextSp, color, true).apply {
             gravity = Gravity.CENTER
             setPadding(dp(12), dp(4), dp(12), dp(4))
             background = rounded(pillFill(color), color)
@@ -135,7 +138,7 @@ class UiKit(private val activity: Activity) {
     fun rounded(fill: String, stroke: String): GradientDrawable {
         return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(8).toFloat()
+            cornerRadius = dp(DesignSystemContract.componentRules().cardRadiusDp).toFloat()
             setColor(Color.parseColor(fill))
             setStroke(dp(1), Color.parseColor(stroke))
         }

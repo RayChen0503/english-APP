@@ -2,6 +2,18 @@
 
 This round turns the existing UI direction into a reusable design system for the Android prototype.
 
+## Executable Contract
+
+The design system is now represented in code by `DesignSystemContract`:
+
+- `DESIGN_SYSTEM_VERSION = 7`
+- color tokens are read from `UiKit.ColorToken`
+- component rules define button heights, card padding, card radius, and status pill text size
+- screen width policy requires checks at 360dp and 412dp
+- density policy separates student screens from teacher/volunteer screens
+
+`UiKit` now reads key component sizing from this contract, so the documentation and Android UI implementation stay aligned.
+
 ## Product Direction
 
 English+ should feel like a low-pressure learning companion, not a test-first question bank. The interface should first answer:
