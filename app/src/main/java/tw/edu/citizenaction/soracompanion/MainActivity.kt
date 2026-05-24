@@ -17,6 +17,7 @@ import java.io.File
 import org.json.JSONArray
 import org.json.JSONObject
 import tw.edu.citizenaction.soracompanion.ai.AiSupportResult
+import tw.edu.citizenaction.soracompanion.ai.AiProxyClient
 import tw.edu.citizenaction.soracompanion.ai.OpenAiClient
 import tw.edu.citizenaction.soracompanion.auth.AuthClient
 import tw.edu.citizenaction.soracompanion.auth.AuthSession
@@ -1000,6 +1001,7 @@ class MainActivity : Activity() {
         screen = Screen.AiLab
         shell("AI 提示實驗室", "可切換真 OpenAI API 與本機模擬")
         root.addView(openAiStatusCard())
+        root.addView(aiProxyEndpointCard())
         root.addView(openAiKeyEntryCard())
         root.addView(card("使用方式", "設定 OpenAI API Key 後可呼叫 Responses API 產生診斷、學生語氣回饋與志工接力摘要。沒有 Key 或網路失敗時，仍會保留本機模擬。", ColorToken.WarningSoft))
         aiScenarios.forEach { root.addView(aiScenarioCard(it)) }
@@ -1026,6 +1028,36 @@ class MainActivity : Activity() {
             }
         ))
         return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun aiProxyEndpointCard(): View {
+        val box = ui.container(ColorToken.Card, ColorToken.Border)
+        box.addView(ui.label("AI Proxy 端點", 18, ColorToken.Ink, true))
+        box.addView(ui.body("正式版建議用後端代理保存 OpenAI Key。手機只送學習脈絡到 HTTPS API，不直接持有正式 Key。"))
+        val input = EditText(this).apply {
+            hint = "https://example.com/api/english-plus/ai"
+            setText(stateStore.aiProxyEndpoint())
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+            setSingleLine(true)
+            textSize = 15f
+            setTextColor(Color.parseColor(ColorToken.Ink))
+            setHintTextColor(Color.parseColor(ColorToken.Muted))
+            background = ui.rounded(ColorToken.Surface, ColorToken.Border)
+            setPadding(ui.dp(14), ui.dp(12), ui.dp(14), ui.dp(12))
+            layoutParams = ui.fullWidthParams()
+        }
+        box.addView(input)
+        box.addView(ui.primaryButton("儲存 AI Proxy 端點") {
+            stateStore.saveAiProxyEndpoint(input.text.toString())
+            recordLearningEvent("ai_proxy_config", "已更新 AI Proxy 端點", stateStore.aiProxyEndpoint().ifBlank { "已清空" })
+            renderAiLab()
+        })
+        box.addView(ui.secondaryButton("清除 AI Proxy 端點") {
+            stateStore.saveAiProxyEndpoint("")
+            recordLearningEvent("ai_proxy_config", "已清除 AI Proxy 端點", "AI 實驗室會回到本機 Key 或本機模擬。")
+            renderAiLab()
+        })
+        return ui.margins(box, 0, 0, 0, 12)
     }
 
     private fun openAiKeyEntryCard(): View {
@@ -1066,7 +1098,7 @@ class MainActivity : Activity() {
 
     private fun renderLiveAiFeedback() {
         val apiKey = stateStore.openAiApiKey()
-        if (!stateStore.hasOpenAiApiKey()) {
+        if (!stateStore.hasAiProxyEndpoint() && !stateStore.hasOpenAiApiKey()) {
             recordLearningEvent("ai_fallback", "未設定 OpenAI API Key", "使用本機 AI 模擬回饋。")
             renderGeneratedAiFeedback("尚未設定 OpenAI API Key，已改用本機模擬。")
             return
@@ -1078,13 +1110,24 @@ class MainActivity : Activity() {
         bottomNav()
         Thread {
             try {
-                val result = OpenAiClient(apiKey).generateSupport(
+                val result = if (stateStore.hasAiProxyEndpoint()) {
+                    AiProxyClient(stateStore.aiProxyEndpoint()).generateSupport(
+                        question = q.prompt,
+                        concept = q.concept,
+                        answerContext = q.repairHint,
+                        moodLabel = mood.label,
+                        wrongAttempts = wrongAttempts,
+                        classCode = currentAccount().classCode
+                    )
+                } else {
+                    OpenAiClient(apiKey).generateSupport(
                     question = q.prompt,
                     concept = q.concept,
                     answerContext = q.repairHint,
                     moodLabel = mood.label,
                     wrongAttempts = wrongAttempts
                 )
+                }
                 runOnUiThread { renderLiveAiResult(result) }
             } catch (error: Exception) {
                 runOnUiThread {

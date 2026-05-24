@@ -265,6 +265,19 @@ class PrototypeStateStore(context: Context) {
 
     fun hasOpenAiApiKey(): Boolean = openAiApiKey().startsWith("sk-")
 
+    fun saveAiProxyEndpoint(url: String) {
+        prefs.edit().putString("ai_proxy_endpoint", url.trim()).apply()
+    }
+
+    fun aiProxyEndpoint(): String {
+        return prefs.getString("ai_proxy_endpoint", "")?.trim().orEmpty()
+    }
+
+    fun hasAiProxyEndpoint(): Boolean {
+        val url = aiProxyEndpoint()
+        return url.startsWith("https://") || url.startsWith("http://")
+    }
+
     fun storageSnapshot(): StorageSnapshot = database.snapshot()
 
     private fun loadLegacyPrefs(): AppState {
