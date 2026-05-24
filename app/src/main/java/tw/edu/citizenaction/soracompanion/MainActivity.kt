@@ -1,7 +1,10 @@
 package tw.edu.citizenaction.soracompanion
 
 import android.app.Activity
+import android.content.Context
 import android.graphics.Color
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
@@ -176,6 +179,20 @@ class MainActivity : Activity() {
         offlineSyncItems = stateStore.offlineSyncItems()
         downloadedPackTitles = stateStore.downloadedPackTitles()
         offlinePendingCount = stateStore.pendingSyncCount()
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        val manager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = manager.activeNetwork ?: return false
+        val capabilities = manager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    private fun syncReadinessText(): String {
+        val networkText = if (isNetworkAvailable()) "網路可用" else "目前離線"
+        val backendText = if (stateStore.hasCloudBackend()) "後端端點已設定" else "尚未設定後端端點"
+        val pendingText = "待補傳 $offlinePendingCount 筆"
+        return "$networkText\n$backendText\n$pendingText"
     }
 
     private fun accountList(): List<LocalAccount> = stateStore.localAccounts(defaultAccounts)
@@ -704,6 +721,7 @@ class MainActivity : Activity() {
         root.addView(storageStatusCard())
         root.addView(cloudBackendStatusCard())
         root.addView(cloudBackendSettingsCard())
+        root.addView(smartSyncStatusCard())
         root.addView(metricRow(
             Metric("待上傳", "${offlinePendingCount} 件", if (offlinePendingCount > 0) ColorToken.Warning else ColorToken.Success),
             Metric("已下載", "${downloadedPackTitles.size} 包", ColorToken.Success),
@@ -721,7 +739,64 @@ class MainActivity : Activity() {
             recordLearningEvent("sync", "本機紀錄已標記同步", "展示版將待同步數歸零，資料仍保留在 SQLite。")
             renderSyncCenter()
         })
-        root.addView(ui.primaryButton("同步到雲端後端") { renderCloudSyncProgress() })
+        root.addView(ui.primaryButton("智慧同步：檢查網路並補傳") { renderSmartSyncProgress() })
+        root.addView(ui.secondaryButton("同步到雲端後端") { renderCloudSyncProgress() })
+        bottomNav()
+    }
+
+    private fun renderSmartSyncProgress() {
+        screen = Screen.SyncCenter
+        refreshOfflineSyncState()
+        val endpoint = stateStore.cloudBackendUrl()
+        val networkReady = isNetworkAvailable()
+        if (!networkReady || !stateStore.hasCloudBackend()) {
+            val reason = when {
+                !networkReady -> "目前沒有可用網路，已保留待補傳佇列。"
+                else -> "尚未設定雲端後端 URL，已保留待補傳佇列。"
+            }
+            addOfflineSyncItem("智慧同步等待補傳", "真同步", reason, "待上傳")
+            recordLearningEvent("smart_sync_waiting", "智慧同步等待補傳", reason)
+            shell("智慧同步等待補傳", "資料仍保留在本機 SQLite")
+            root.addView(card("同步暫停", "$reason\n\n${syncReadinessText()}", ColorToken.WarningSoft))
+            root.addView(cloudBackendSettingsCard())
+            offlineSyncItems.take(6).forEach { root.addView(offlineSyncItemCard(it)) }
+            root.addView(ui.primaryButton("回同步中心") { renderSyncCenter() })
+            bottomNav()
+            return
+        }
+
+        shell("智慧同步進行中", "網路與後端端點皆可用，正在補傳本機佇列")
+        root.addView(card("真同步檢查通過", "網路可用\n端點：$endpoint\n待補傳：$offlinePendingCount 筆", ColorToken.PrimarySoft))
+        root.addView(card("補傳內容", "學習紀錄、協作紀錄、題庫摘要、離線佇列與目前學生狀態會一起包成 JSON 送出。", ColorToken.Card))
+        bottomNav()
+
+        Thread {
+            try {
+                val payload = stateStore.cloudSyncPayload(currentAccount().classCode)
+                    .put("syncMode", "smart_retry")
+                    .put("networkCheckedAt", System.currentTimeMillis())
+                val result = CloudBackendClient(endpoint).sync(payload)
+                runOnUiThread { renderSmartSyncResult(result) }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    addOfflineSyncItem("智慧同步補傳失敗", "真同步", error.message ?: "未知錯誤", "待上傳")
+                    recordLearningEvent("smart_sync_failed", "智慧同步補傳失敗", error.message ?: "未知錯誤")
+                    renderCloudSyncFailure(error.message ?: "未知錯誤")
+                }
+            }
+        }.start()
+    }
+
+    private fun renderSmartSyncResult(result: CloudSyncResult) {
+        screen = Screen.SyncCenter
+        stateStore.markOfflineSyncItemsSynced()
+        addOfflineSyncItem("智慧同步補傳完成", "真同步", "後端回應 ${result.statusCode}，本機待補傳佇列已標記完成。", "已同步")
+        refreshOfflineSyncState()
+        recordLearningEvent("smart_sync_success", "智慧同步補傳完成", "HTTP ${result.statusCode}")
+        shell("智慧同步完成", "本機佇列已補傳到雲端後端")
+        root.addView(card("同步成功", "HTTP ${result.statusCode}\n目前待補傳：$offlinePendingCount 筆", ColorToken.SuccessSoft))
+        root.addView(card("後端回應", result.responseText.ifBlank { "後端未回傳內容" }, ColorToken.Card))
+        root.addView(ui.primaryButton("回同步中心") { renderSyncCenter() })
         bottomNav()
     }
 
@@ -1535,6 +1610,22 @@ class MainActivity : Activity() {
             },
             "#334155"
         ))
+        return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun smartSyncStatusCard(): View {
+        val networkReady = isNetworkAvailable()
+        val backendReady = stateStore.hasCloudBackend()
+        val ready = networkReady && backendReady
+        val box = ui.container(if (ready) ColorToken.SuccessSoft else ColorToken.WarningSoft, ColorToken.Border)
+        box.addView(ui.statusPill(if (ready) "真同步可執行" else "同步需補件", if (ready) ColorToken.Success else ColorToken.Warning))
+        box.addView(ui.label("智慧同步檢查", 18, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body(syncReadinessText(), "#334155"))
+        box.addView(ui.body("按下智慧同步時，English+ 會先檢查網路與後端 URL；失敗就保留待補傳，成功才把本機佇列標記為已同步。", ColorToken.Muted).apply {
+            setPadding(0, ui.dp(6), 0, 0)
+        })
         return ui.margins(box, 0, 8, 0, 12)
     }
 
