@@ -981,6 +981,11 @@ class MainActivity : Activity() {
         shell("同步多人協作", if (pushFirst) "先推送本機協作，再拉取遠端更新" else "正在拉取遠端協作紀錄")
         root.addView(card("協作後端", stateStore.cloudBackendUrl(), ColorToken.PrimarySoft))
         root.addView(card("同步班級", currentAccount().classCode, ColorToken.Card))
+        root.addView(card(
+            "第四輪同步規則",
+            "協作紀錄會以 eventId 去重；同一筆接力在不同裝置更新時，保留 createdAt 較新的版本。學生端不能建立正式接力紀錄，老師/志工端可以寫入。",
+            ColorToken.VioletSoft
+        ))
         bottomNav()
 
         Thread {

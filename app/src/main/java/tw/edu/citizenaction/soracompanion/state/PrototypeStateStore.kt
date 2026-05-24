@@ -6,6 +6,7 @@ import org.json.JSONObject
 import tw.edu.citizenaction.soracompanion.auth.AuthContract
 import tw.edu.citizenaction.soracompanion.auth.AuthSession
 import tw.edu.citizenaction.soracompanion.cloud.CloudDataContract
+import tw.edu.citizenaction.soracompanion.cloud.CollaborationSyncContract
 import tw.edu.citizenaction.soracompanion.model.AppState
 import tw.edu.citizenaction.soracompanion.model.CollaborationNote
 import tw.edu.citizenaction.soracompanion.model.LocalAccount
@@ -130,11 +131,29 @@ class PrototypeStateStore(context: Context) {
     }
 
     fun collaborationPayload(classCode: String): JSONObject {
+        val state = load()
+        val accounts = database.loadAccounts(emptyList())
+        val selectedAccount = accounts.firstOrNull { it.displayName == state.selectedAccountName }
+        val scope = CloudDataContract.buildScope(
+            classCode = selectedAccount?.classCode ?: classCode,
+            accountName = state.selectedAccountName,
+            roleLabel = selectedAccount?.roleLabel ?: AuthContract.ROLE_STUDENT
+        )
+        val metadata = CollaborationSyncContract.buildCollaborationSyncMetadata(scope, pushFirst = true)
         return JSONObject()
+            .put("schemaVersion", CloudDataContract.SCHEMA_VERSION)
+            .put("collaborationSchemaVersion", CollaborationSyncContract.COLLABORATION_SCHEMA_VERSION)
+            .put("app", "English+")
             .put("classCode", classCode)
+            .put("classId", scope.classId)
+            .put("userId", scope.userId)
+            .put("roleLabel", scope.roleLabel)
+            .put("collectionPath", scope.collaborationCollectionPath)
+            .put("syncMetadata", JSONObject(metadata))
             .put("exportedAt", System.currentTimeMillis())
             .put("collaborationNotes", JSONArray(database.loadCollaborationNotes(30).map { note ->
                 JSONObject()
+                    .put("eventId", CollaborationSyncContract.eventId(note))
                     .put("actor", note.actor)
                     .put("role", note.role)
                     .put("target", note.target)
@@ -323,6 +342,6 @@ class PrototypeStateStore(context: Context) {
     }
 
     private fun CollaborationNote.collaborationKey(): String {
-        return listOf(actor, role, target, note, status, createdAt.toString()).joinToString("|")
+        return CollaborationSyncContract.eventId(this)
     }
 }
