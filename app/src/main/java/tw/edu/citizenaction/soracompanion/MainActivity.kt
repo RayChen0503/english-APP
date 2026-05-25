@@ -2272,7 +2272,7 @@ class MainActivity : Activity() {
             progress = currentQuestionIndex + 1
             setPadding(0, ui.dp(12), 0, ui.dp(8))
         })
-        box.addView(ui.label("先選出最適合的答案", 14, ColorToken.Primary, true))
+        box.addView(ui.label(questionInstruction(question), 14, ColorToken.Primary, true))
         box.addView(ui.label(question.prompt, 27, ColorToken.Ink, true).apply {
             setPadding(0, ui.dp(10), 0, ui.dp(12))
         })
@@ -2283,6 +2283,16 @@ class MainActivity : Activity() {
             box.addView(ui.secondaryButton(option) { answer(option) })
         }
         return ui.margins(box, 0, 8, 0, 12)
+    }
+
+    private fun questionInstruction(question: Question): String {
+        return when (question.type) {
+            "填空題" -> "讀完整句，選出最適合放入空格的答案"
+            "克漏字" -> "先看空格前後文，再選出最自然的答案"
+            "閱讀理解" -> "先看題目問什麼，再回文字找線索"
+            "翻譯/句子重組" -> "比較語序與句意，選出最自然的英文"
+            else -> "先選出最適合的答案"
+        }
     }
 
     private fun moduleCard(module: LearningModule): View {

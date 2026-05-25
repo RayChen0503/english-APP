@@ -10,7 +10,7 @@ class PrototypeRepositoryTest {
     fun questionBankItemsHaveValidQuestionPayloads() {
         val items = PrototypeRepository.questionBankItems
 
-        assertTrue("question bank should contain enough demo items", items.size >= 10)
+        assertTrue("question bank should contain enough demo items", items.size >= 20)
         assertEquals("question bank ids should be unique", items.size, items.map { it.id }.distinct().size)
 
         items.forEach { item ->
@@ -19,6 +19,26 @@ class PrototypeRepositoryTest {
             assertFalse("concept should not be blank for ${item.id}", item.question.concept.isBlank())
             assertFalse("repair hint should not be blank for ${item.id}", item.question.repairHint.isBlank())
         }
+    }
+
+    @Test
+    fun questionBankCoversCapStyleQuestionTypesAndDifficultyRange() {
+        val items = PrototypeRepository.questionBankItems
+        val types = items.map { it.question.type }.toSet()
+        val levels = items.map { it.level }.toSet()
+
+        assertTrue("should keep simple choice questions as the lower bound", types.contains("選擇題"))
+        assertTrue("should include fill-in questions", types.contains("填空題"))
+        assertTrue("should include cloze passage questions", types.contains("克漏字"))
+        assertTrue("should include reading comprehension questions", types.contains("閱讀理解"))
+        assertTrue("should include translation or sentence reordering questions", types.contains("翻譯/句子重組"))
+        assertTrue("should keep A1 entry-level items", levels.contains("A1"))
+        assertTrue("should include A2 bridge items", levels.contains("A2"))
+        assertTrue("should include B1 CAP challenge items", levels.contains("B1"))
+        assertTrue(
+            "CAP-style originals should be marked in the source",
+            items.any { it.source.contains("CAP-style original") }
+        )
     }
 
     @Test
