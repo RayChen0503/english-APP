@@ -32,13 +32,13 @@ object PilotMaterialsContract {
 
     fun teacherBrief(): TeacherBrief {
         return TeacherBrief(
-            title = "English+ 班級試用老師說明",
+            title = "English+ 教室內測老師簡報",
             talkingPoints = listOf(
-                "English+ 是低壓英語學習與情緒斷點接力原型，不是比較名次或刷題工具。",
-                "學生先回報狀態，再做一個短任務，平台會把卡住的位置變成可修復的一小步。",
-                "情緒斷點會被整理成老師或志工看得懂的證據與下一步。",
-                "老師與志工的重點是接住學生、降低重複說明成本，而不是增加作業量。",
-                "試用後請回饋：摘要是否能行動、學生是否願意下次再用、同步/報告是否清楚。"
+                "English+ 不是排名工具，而是幫學生在卡關時被接住。",
+                "學生先做 3-5 分鐘短任務；錯題會變成修復線索，不會變成公開懲罰。",
+                "AI 負責把錯題拆小；老師與志工負責處理需要真人陪伴的情緒斷點。",
+                "內測時請觀察學生是否願意回來做下一題，而不只看答對率。",
+                "所有回饋都以支持、修復、接力為主，不公開比較學生。"
             ),
             demoReminder = "Start with student home, then task, AI fallback, handoff, sync, question bank, and report."
         )
@@ -47,11 +47,11 @@ object PilotMaterialsContract {
     fun consentNotice(): ConsentNotice {
         return ConsentNotice(
             sections = linkedMapOf(
-                "資料會用在哪裡" to "本次試用只用於學習支持、情緒斷點分析、老師/志工接力與課程成果檢核。",
-                "會記錄哪些資料" to "可能記錄心情狀態、答題狀況、修復提示、協作紀錄、同步狀態與回饋內容。",
-                "誰可以看到" to "試用資料只提供授課老師、課程小組與必要志工查看，不公開展示個別學生資料。",
-                "AI 如何使用" to "AI 只用於產生學習支持與接力摘要；正式版應透過後端代理，不讓手機保存正式 API Key。",
-                "退出方式" to "學生或家長可提出不參與或停止使用，停止後不再新增該學生的試用紀錄。"
+                "資料會用在哪裡" to "內測資料只用於理解學生學習狀態、情緒斷點、錯題修復與老師/志工接力。",
+                "誰可以看到" to "學生本人、授課老師、指定志工與課程團隊可查看必要資料；不公開給其他學生比較。",
+                "退出方式" to "學生或家長可要求停止使用，並請老師或課程團隊協助移除展示資料。",
+                "AI 使用說明" to "AI 只用於產生低壓提示與修復建議；正式版不得把正式 OpenAI Key 放在手機端。",
+                "不公開排名" to "English+ 不做公開排行榜，也不把學生情緒斷點視為失敗。"
             ),
             allowPublicRanking = false
         )
@@ -59,20 +59,20 @@ object PilotMaterialsContract {
 
     fun feedbackForm(): FeedbackForm {
         return FeedbackForm(
-            title = "English+ 班級試用回饋表",
+            title = "English+ 內測回饋表",
             questions = listOf(
-                FeedbackQuestion("student", "你下次遇到英文卡住時，會想再用 English+ 嗎？為什麼？", "short text"),
-                FeedbackQuestion("student", "今天的任務長度讓你覺得可以開始，還是仍然有壓力？", "choice + short text"),
-                FeedbackQuestion("teacher", "老師能不能在一分鐘內看出學生下一步需要什麼支持？", "scale + note"),
-                FeedbackQuestion("teacher", "週報與接力摘要是否足以作為課後追蹤依據？", "scale + note"),
-                FeedbackQuestion("volunteer", "志工看到摘要後，是否知道要先說什麼、帶哪一小步？", "scale + note")
+                FeedbackQuestion("student", "你打開 App 後，是否很快知道今天先做什麼？", "choice + short text"),
+                FeedbackQuestion("student", "當你答錯或卡住時，提示是否讓你比較敢繼續？", "choice + short text"),
+                FeedbackQuestion("teacher", "你是否能在一分鐘內看懂學生下一步需要什麼？", "scale + note"),
+                FeedbackQuestion("teacher", "報告與接力摘要是否足夠支持教學判斷？", "scale + note"),
+                FeedbackQuestion("volunteer", "志工是否能根據摘要直接陪學生完成下一小步？", "scale + note")
             )
         )
     }
 
     fun observationSheet(): ObservationSheet {
         return ObservationSheet(
-            title = "English+ 試用觀察紀錄",
+            title = "English+ 內測觀察表",
             fields = listOf(
                 "student returned after support",
                 "student understood next small task",

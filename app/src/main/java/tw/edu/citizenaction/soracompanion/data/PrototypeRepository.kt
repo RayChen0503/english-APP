@@ -1,387 +1,198 @@
 package tw.edu.citizenaction.soracompanion.data
 
-import tw.edu.citizenaction.soracompanion.model.Breakpoint
+import tw.edu.citizenaction.soracompanion.auth.AuthContract
 import tw.edu.citizenaction.soracompanion.model.AiScenario
+import tw.edu.citizenaction.soracompanion.model.Breakpoint
 import tw.edu.citizenaction.soracompanion.model.DesignPrinciple
-import tw.edu.citizenaction.soracompanion.model.InterventionStep
-import tw.edu.citizenaction.soracompanion.model.JourneyStep
-import tw.edu.citizenaction.soracompanion.model.LearningModule
-import tw.edu.citizenaction.soracompanion.model.LearningContract
-import tw.edu.citizenaction.soracompanion.model.LocalAccount
-import tw.edu.citizenaction.soracompanion.model.MistakeRecord
-import tw.edu.citizenaction.soracompanion.model.OfflinePack
 import tw.edu.citizenaction.soracompanion.model.HandoffPriority
 import tw.edu.citizenaction.soracompanion.model.HelpRequestOption
+import tw.edu.citizenaction.soracompanion.model.InterventionStep
+import tw.edu.citizenaction.soracompanion.model.JourneyStep
+import tw.edu.citizenaction.soracompanion.model.LearningContract
+import tw.edu.citizenaction.soracompanion.model.LearningModule
+import tw.edu.citizenaction.soracompanion.model.LocalAccount
 import tw.edu.citizenaction.soracompanion.model.MentorCheck
+import tw.edu.citizenaction.soracompanion.model.MistakeRecord
+import tw.edu.citizenaction.soracompanion.model.OfflinePack
 import tw.edu.citizenaction.soracompanion.model.Question
 import tw.edu.citizenaction.soracompanion.model.QuestionBankItem
 import tw.edu.citizenaction.soracompanion.model.ReflectionPrompt
-import tw.edu.citizenaction.soracompanion.model.SyncRecord
-import tw.edu.citizenaction.soracompanion.model.StudyTask
-import tw.edu.citizenaction.soracompanion.model.SupportMessage
 import tw.edu.citizenaction.soracompanion.model.StudentProfile
 import tw.edu.citizenaction.soracompanion.model.StudentRow
+import tw.edu.citizenaction.soracompanion.model.StudyTask
+import tw.edu.citizenaction.soracompanion.model.SupportMessage
+import tw.edu.citizenaction.soracompanion.model.SyncRecord
 import tw.edu.citizenaction.soracompanion.model.TeacherAction
 import tw.edu.citizenaction.soracompanion.model.WeeklySignal
 
 object PrototypeRepository {
     val student = StudentProfile(
-        name = "林家豪",
+        name = "小安",
         age = 14,
-        location = "宜蘭頭城",
-        grade = "國二",
-        goal = "會考英文從 C 往 B 前進",
-        constraint = "家庭與同儕支援有限，學習時間常被切碎。",
-        mentor = "雲端志工 Emily",
-        learningStyle = "需要短任務、即時鼓勵與明確下一步。",
-        supportNeed = "在情緒低落或連續答錯時，需要先被接住，再重新練習。"
+        location = "宜蘭偏鄉",
+        grade = "八年級",
+        goal = "英文從 C 慢慢拉回 B",
+        constraint = "家裡網路不穩，完整測驗容易焦慮",
+        mentor = "志工 Emily",
+        learningStyle = "需要短任務、明確提示和可被接住的錯誤回饋",
+        supportNeed = "先降低挫折，再把真正需要人的地方交給老師或志工"
     )
 
     val modules = listOf(
-        LearningModule("字彙地基", "會考常見 120 字", 68, "今天複習 6 個高頻字", "穩定"),
-        LearningModule("句型修復", "be 動詞 / 現在式", 42, "目前最需要陪伴", "修復中"),
-        LearningModule("閱讀短任務", "3 分鐘生活短文", 24, "先找主詞與動詞", "低壓"),
-        LearningModule("聽力暖身", "慢速句子辨識", 31, "狀態好時練 2 題", "可選"),
-        LearningModule("會考小測", "單題診斷", 18, "暫時不做連續測驗", "保留")
+        LearningModule("be 動詞暖身", "am / is / are 的基本判斷", 68, "再練 2 題主詞搭配", "進行中"),
+        LearningModule("短句閱讀", "從一句英文找出主詞與動作", 42, "先看關鍵字，不急著翻整句", "待修復"),
+        LearningModule("生活單字", "學校、家庭、時間相關字彙", 35, "用圖片或例句記一個詞", "暖身"),
+        LearningModule("口語回應", "Thank you / Sorry / I am fine", 31, "先選情境，再選回應", "可挑戰"),
+        LearningModule("錯題復原", "把常錯規則整理成下一步", 18, "只做一個 3 分鐘修復任務", "低壓")
     )
 
     val questions = listOf(
-        Question("He ___ a student.", listOf("am", "is", "are"), "is", "He 是一個人，通常搭配 is。", "be 動詞與主詞搭配", "句型修復", "先看主詞 He，再只判斷一件事：He 搭配 is。"),
-        Question("They ___ my friends.", listOf("is", "are", "am"), "are", "They 是很多人，通常搭配 are。", "be 動詞與複數主詞", "句型修復", "把 They 想成很多人，所以要選 are。"),
-        Question("I ___ ready.", listOf("am", "is", "are"), "am", "I 要搭配 am，這是最常見固定組合。", "I am 固定組合", "句型修復", "I am 先當成固定片語背起來。"),
-        Question("She ___ happy today.", listOf("are", "am", "is"), "is", "She 是一個人，和 He 一樣通常搭配 is。", "第三人稱單數", "句型修復", "He 和 She 都是一個人，先選 is。"),
-        Question("We ___ in the classroom.", listOf("is", "are", "am"), "are", "We 是我們，表示很多人，通常搭配 are。", "複數主詞", "句型修復", "We 代表我們，通常不只一個人，所以用 are。"),
-        Question("選出主詞：The boy is reading a book.", listOf("The boy", "reading", "a book"), "The boy", "主詞通常是句子裡正在做動作的人或東西。", "閱讀拆句", "閱讀題", "先不要翻整句，只找誰在做事。"),
-        Question("聽力暖身：I am fine. 這句最接近哪個意思？", listOf("我很好", "我很晚", "我在找東西"), "我很好", "I am fine 是最常見的狀態表達。", "聽力暖身", "聽力題", "先抓 fine 這個關鍵字，不需要每個字都懂。"),
-        Question("字彙：usually 最接近哪個意思？", listOf("通常", "突然", "最後"), "通常", "usually 表示通常、平常。", "會考高頻字", "字彙題", "把 usually 和平常做的事連在一起。")
+        Question("He ___ a student.", listOf("am", "is", "are"), "is", "He 是第三人稱單數，要搭配 is。", "be 動詞：He/She/It + is", repairHint = "先看主詞 He，再選第三人稱單數的 is。"),
+        Question("They ___ my friends.", listOf("is", "are", "am"), "are", "They 是複數主詞，要搭配 are。", "be 動詞：複數 + are", repairHint = "They 表示很多人，先排除 is 和 am。"),
+        Question("I ___ ready.", listOf("am", "is", "are"), "am", "I 固定搭配 am。", "be 動詞：I + am", repairHint = "看到 I，先想 I am。"),
+        Question("She ___ happy today.", listOf("are", "am", "is"), "is", "She 和 He 一樣，要搭配 is。", "be 動詞：She + is", repairHint = "She 是一個人，第三人稱單數用 is。"),
+        Question("We ___ in the classroom.", listOf("is", "are", "am"), "are", "We 是複數主詞，要搭配 are。", "be 動詞：We + are", repairHint = "We 表示我們，通常搭配 are。"),
+        Question("The boy is reading a book. 這句的主詞是？", listOf("The boy", "reading", "a book"), "The boy", "主詞是做動作的人，這裡是 The boy。", "閱讀：找主詞", repairHint = "先問：誰正在 reading？答案是 The boy。"),
+        Question("Thank you. 最自然的回應是？", listOf("You're welcome.", "Good night.", "I'm sorry."), "You're welcome.", "別人說謝謝時，可以回 You're welcome。", "口語：感謝回應", repairHint = "看到 Thank you，就想 You're welcome。"),
+        Question("usually 的意思比較接近？", listOf("通常", "從不", "明天"), "通常", "usually 表示通常、經常。", "單字：頻率副詞", repairHint = "usually 是頻率字，表示事情常常發生。")
     )
 
     val questionBankItems = listOf(
-        QuestionBankItem("b1-u1-001", "A1", "be 動詞暖身", "句型修復", "English+ seed", questions[0]),
-        QuestionBankItem("b1-u1-002", "A1", "be 動詞暖身", "句型修復", "English+ seed", questions[1]),
-        QuestionBankItem("b1-u1-003", "A1", "be 動詞暖身", "句型修復", "English+ seed", questions[2]),
-        QuestionBankItem("b1-u1-004", "A1", "be 動詞暖身", "句型修復", "English+ seed", questions[3]),
-        QuestionBankItem("b1-u1-005", "A1", "be 動詞暖身", "句型修復", "English+ seed", questions[4]),
-        QuestionBankItem("r1-u1-001", "A1", "閱讀拆句", "閱讀理解", "English+ seed", questions[5]),
-        QuestionBankItem("l1-u1-001", "A1", "聽力暖身", "聽力理解", "English+ seed", questions[6]),
-        QuestionBankItem("v1-u1-001", "A1", "會考高頻字", "字彙判斷", "English+ seed", questions[7]),
-        QuestionBankItem(
-            "b1-u2-001",
-            "A1",
-            "現在式入門",
-            "句型修復",
-            "English+ seed",
-            Question("My brother ___ tall.", listOf("is", "are", "am"), "is", "My brother 是一個人，所以搭配 is。", "第三人稱單數", "句型修復", "先找主詞 My brother，再判斷是一個人。")
-        ),
-        QuestionBankItem(
-            "v1-u2-001",
-            "A1",
-            "校園生活字彙",
-            "字彙判斷",
-            "English+ seed",
-            Question("library 最接近哪個意思？", listOf("圖書館", "操場", "餐廳"), "圖書館", "library 是圖書館，常和 book、read 連在一起。", "校園高頻字", "字彙題", "把 library 和 books 放在一起記。")
-        ),
-        QuestionBankItem(
-            "r1-u2-001",
-            "A1",
-            "短句閱讀",
-            "閱讀理解",
-            "English+ seed",
-            Question("Tom plays basketball after school. Tom 放學後做什麼？", listOf("打籃球", "看電視", "寫信"), "打籃球", "plays basketball 表示打籃球。", "短句抓關鍵字", "閱讀題", "先抓 Tom 和 basketball，不需要每個字都翻。")
-        ),
-        QuestionBankItem(
-            "l1-u2-001",
-            "A1",
-            "生活聽力",
-            "聽力理解",
-            "English+ seed",
-            Question("聽力暖身：Thank you. 最自然的回應是？", listOf("You're welcome.", "Good night.", "I'm sorry."), "You're welcome.", "別人說謝謝時，常用 You're welcome 回應。", "生活對話", "聽力題", "把 Thank you 和 You're welcome 當一組。")
-        )
+        QuestionBankItem("b1-u1-001", "A1", "be 動詞暖身", "文法", "English+ seed", questions[0], reviewState = "approved"),
+        QuestionBankItem("b1-u1-002", "A1", "be 動詞暖身", "文法", "English+ seed", questions[1], reviewState = "approved"),
+        QuestionBankItem("b1-u1-003", "A1", "be 動詞暖身", "文法", "English+ seed", questions[2], reviewState = "approved"),
+        QuestionBankItem("b1-u1-004", "A1", "be 動詞暖身", "文法", "English+ seed", questions[3], reviewState = "approved"),
+        QuestionBankItem("b1-u1-005", "A1", "be 動詞暖身", "文法", "English+ seed", questions[4], reviewState = "approved"),
+        QuestionBankItem("r1-u1-001", "A1", "短句閱讀", "閱讀", "English+ seed", questions[5]),
+        QuestionBankItem("s1-u1-001", "A1", "口語回應", "口說", "English+ seed", questions[6]),
+        QuestionBankItem("v1-u1-001", "A1", "頻率副詞", "單字", "English+ seed", questions[7]),
+        QuestionBankItem("b1-u2-001", "A1", "be 動詞延伸", "文法", "English+ seed", Question("My brother ___ tall.", listOf("is", "are", "am"), "is", "My brother 是單數主詞，要搭配 is。", "be 動詞：單數 + is", repairHint = "先把 My brother 看成 he，再選 is。")),
+        QuestionBankItem("r1-u2-001", "A1", "短句閱讀", "閱讀", "English+ seed", Question("Tom plays basketball after school. Tom 做什麼？", listOf("打籃球", "看書", "睡覺"), "打籃球", "plays basketball 表示打籃球。", "閱讀：抓動作", repairHint = "找動詞 plays，再看後面的 basketball。")),
+        QuestionBankItem("v1-u2-001", "A1", "校園單字", "單字", "English+ seed", Question("library 的意思是？", listOf("圖書館", "操場", "餐廳"), "圖書館", "library 是圖書館。", "單字：校園地點", repairHint = "library 和 book、read 常一起出現。")),
+        QuestionBankItem("s1-u2-001", "A1", "日常口語", "口說", "English+ seed", Question("I'm sorry. 最適合的情境是？", listOf("道歉", "道早安", "問路"), "道歉", "I'm sorry 用在道歉或表達抱歉。", "口語：道歉", repairHint = "sorry 的核心意思是抱歉。"))
     )
 
     fun initialBreakpoints(): MutableList<Breakpoint> = mutableListOf(
-        Breakpoint(
-            "be 動詞與主詞搭配",
-            "高",
-            "He am / He are 連續答錯 3 次",
-            "AI 已改用一題一概念提示。",
-            "請志工用 He is、They are 各帶 2 題口頭練習。"
-        ),
-        Breakpoint(
-            "看到長句就想退出",
-            "中",
-            "閱讀題停留 18 秒後返回首頁",
-            "AI 已拆成找主詞、找動詞、看選項三步。",
-            "先問學生看懂哪三個字，不急著講整段翻譯。"
-        )
+        Breakpoint("be 動詞反覆錯", "高", "He am / He are 連續錯 3 次。", "AI 先把規則拆成 He is、They are 兩張小卡。", "志工只追問一件事：學生能不能說出 He 為什麼用 is。"),
+        Breakpoint("看到長句就停住", "中", "閱讀題停留超過 18 秒且沒有作答。", "平台先標出主詞與動詞，降低整句翻譯壓力。", "老師下次補一張『先找誰做什麼』練習單。")
     )
 
     val roster = listOf(
-        StudentRow("林家豪", "高", "be 動詞連錯", "今天已回來做 1 次修復任務"),
-        StudentRow("陳以晴", "中", "閱讀題停留過久", "需要短文拆句"),
-        StudentRow("吳承恩", "低", "字彙複習中斷", "適合推 3 分鐘復原任務"),
-        StudentRow("黃品妤", "中", "聽力任務跳出", "適合改用慢速句子"),
-        StudentRow("張宇翔", "低", "完成字彙複習", "可給小挑戰題")
+        StudentRow("小安", "高", "be 動詞卡關", "需要志工接力 1 次"),
+        StudentRow("阿柔", "中", "長句閱讀猶豫", "先給拆句提示"),
+        StudentRow("志豪", "低", "單字量不足", "可用離線單字包"),
+        StudentRow("小晴", "中", "開口回應不確定", "適合口語情境練習"),
+        StudentRow("宇翔", "低", "完成率穩定", "可安排小挑戰")
     )
 
     val studyTasks = listOf(
-        StudyTask("He is 單題修復", 3, "低", "連續錯題後先建立可完成感", "今日優先"),
-        StudyTask("They are 對照練習", 5, "中", "接在 He is 之後，避免一次混太多", "待解鎖"),
-        StudyTask("生活短句閱讀", 5, "低", "用短句找主詞與動詞", "可選"),
-        StudyTask("會考單題診斷", 8, "中", "狀態穩定時才做", "保留")
+        StudyTask("He is / She is 快速判斷", 3, "低", "先用一題建立成功感。", "推薦"),
+        StudyTask("They are / We are 對照", 5, "中", "把單數和複數分開練。", "可開始"),
+        StudyTask("找出句子的主詞", 5, "低", "閱讀前先找到誰在做事。", "暖身"),
+        StudyTask("Thank you 情境回應", 8, "中", "用生活句降低開口壓力。", "延伸")
     )
 
     val supportMessages = listOf(
-        SupportMessage("AI 小幫手", "剛剛", "你不是完全不會，是卡在 He 要搭配哪個 be 動詞。先把問題縮小就好。", "即時鼓勵"),
-        SupportMessage("Emily 志工", "昨天 20:12", "你昨天願意回來做 3 分鐘任務，這比一次寫很多題更重要。", "真人陪伴"),
-        SupportMessage("系統", "週一", "本週目標已調整為低壓修復，不啟用排行榜。", "學習節奏")
+        SupportMessage("AI 陪伴", "剛剛", "你不是不會英文，只是現在卡在主詞和 be 動詞的搭配。我們先練 He is。", "低壓"),
+        SupportMessage("Emily 志工", "20:12", "小安今天願意回來做 3 分鐘任務，先肯定開始，再修一個規則。", "接力"),
+        SupportMessage("老師", "昨天", "本週不要公開排名，先看誰願意完成短任務與回到練習。", "教學提醒")
     )
 
     val weeklySignals = listOf(
-        WeeklySignal("回來學習", "4 天", "比上週多 1 天", "#0F766E"),
-        WeeklySignal("微任務", "9 題", "其中 6 題在 5 分鐘內完成", "#246BFD"),
-        WeeklySignal("主動求助", "1 次", "願意求助是正向訊號", "#B45309"),
-        WeeklySignal("高風險斷點", "1 個", "需要志工接力", "#B91C1C")
+        WeeklySignal("完成短任務", "4 次", "比上週多 1 次", "#0F766E"),
+        WeeklySignal("接受提示後作答", "9 題", "大多能在第二次修正", "#246BFD"),
+        WeeklySignal("高壓斷點", "1 次", "出現在長句閱讀", "#B45309"),
+        WeeklySignal("需要真人接力", "1 人", "已安排志工追蹤", "#B91C1C")
     )
 
     val mistakeRecords = listOf(
-        MistakeRecord("He / She / It + is", "把 He 搭配 am 或 are", "先只練 He is，再對照 They are", "修復中"),
-        MistakeRecord("複數主詞 + are", "看到 They 仍選 is", "用圖片或人數提示建立複數概念", "待接力"),
-        MistakeRecord("長句閱讀", "看到 10 字以上句子就退出", "改成找主詞、找動詞、看選項三步", "觀察中")
+        MistakeRecord("He / She / It + is", "把 He 搭配成 am 或 are", "先念 He is，再做 2 題對照", "已修復一次"),
+        MistakeRecord("複數主詞 + are", "They 被誤選成 is", "用 They are my friends 當固定句", "待複習"),
+        MistakeRecord("長句閱讀", "看到整句就想放棄", "先圈主詞，再找動詞", "接力追蹤")
     )
 
     val offlinePacks = listOf(
-        OfflinePack("3 分鐘 be 動詞修復包", "1.2 MB", "3-5 分鐘", "5 題單概念練習、2 句 AI 鼓勵、1 個求助按鈕"),
-        OfflinePack("會考高頻字暖身包", "900 KB", "5 分鐘", "6 個單字、6 張例句卡、1 次低壓複習"),
-        OfflinePack("短文拆句包", "1.6 MB", "5-8 分鐘", "2 篇短文、主詞提示、動詞提示、逐步解題")
+        OfflinePack("3 分鐘 be 動詞包", "1.2 MB", "3-5 分鐘", "5 題判斷、2 張規則小卡、1 個反思問題"),
+        OfflinePack("校園單字包", "900 KB", "5 分鐘", "library、classroom、teacher 等生活單字"),
+        OfflinePack("短句閱讀包", "1.6 MB", "5-8 分鐘", "先找主詞與動詞，不要求一次翻完整句")
     )
 
     val mentorChecks = listOf(
-        MentorCheck("差異化", "良好", "有避開與 Cool English、均一大量內容平台正面競爭。", "#0F766E"),
-        MentorCheck("動機導向", "良好", "首頁心情檢測、低壓任務、非排行榜成就系統都有對應。", "#0F766E"),
-        MentorCheck("可執行性", "待確認", "目前是原型與假資料，下一步需確認學校/志工合作流程。", "#B45309"),
-        MentorCheck("低負擔", "良好", "志工端以摘要和腳本接力，降低備課成本。", "#0F766E"),
-        MentorCheck("完整度", "待補強", "尚未接後端、帳號與真 AI。", "#B45309")
+        MentorCheck("低壓任務入口", "通過", "學生打開首頁後能很快看到今天先做什麼。", "#0F766E"),
+        MentorCheck("情緒斷點處理", "通過", "錯題後有 AI 或本機模擬提示，不會直接責備。", "#0F766E"),
+        MentorCheck("真人接力", "待實測", "需要用實際老師/志工確認摘要是否夠清楚。", "#B45309"),
+        MentorCheck("離線同步", "展示完成", "本機保存與待同步狀態可被看見。", "#0F766E"),
+        MentorCheck("正式後端", "未部署", "Firebase 或校內後端仍屬內測後任務。", "#B45309")
     )
 
     val handoffPriorities = listOf(
-        HandoffPriority("林家豪 be 動詞高風險斷點", "Emily 志工", "今天只帶 He is / They are 各 2 題", "高"),
-        HandoffPriority("陳以晴 閱讀停留過久", "英文老師", "下次課堂用短句拆主詞動詞", "中"),
-        HandoffPriority("吳承恩 字彙中斷", "AI 小幫手", "推送 3 分鐘高頻字暖身包", "低")
+        HandoffPriority("小安 be 動詞高壓斷點", "Emily 志工", "陪他說出 He is / They are 的差別", "高"),
+        HandoffPriority("阿柔 長句閱讀停住", "英文老師", "示範先找主詞與動詞", "中"),
+        HandoffPriority("志豪 單字量不足", "AI 陪伴", "安排 3 分鐘校園單字包", "低")
     )
 
     val journeySteps = listOf(
-        JourneyStep(
-            "進入 app",
-            "不知道今天能不能學，擔心又被考倒。",
-            "先問心情與可用時間，不直接進入測驗。",
-            "心情低落或時間少於 5 分鐘時，只派復原任務。"
-        ),
-        JourneyStep(
-            "開始短任務",
-            "願意嘗試，但只承受得住很小的壓力。",
-            "一題一概念，答錯先提示，不顯示排名。",
-            "連續答錯 2 次時啟動 AI 拆解。"
-        ),
-        JourneyStep(
-            "出現斷點",
-            "覺得自己英文很爛，想關掉 app。",
-            "把任務縮小成可完成步驟，並保存斷點證據。",
-            "連續答錯 3 次或重複退出時，生成志工接力摘要。"
-        ),
-        JourneyStep(
-            "真人接力",
-            "需要被肯定，也需要有人用同一概念陪練。",
-            "志工只看到必要脈絡、錯題型態與建議陪伴語。",
-            "高風險情緒訊號優先給真人，低風險交給 AI。"
-        ),
-        JourneyStep(
-            "回到學習",
-            "希望知道自己有進步，不只是被糾錯。",
-            "把復原任務和短任務都計入學習地圖。",
-            "週報呈現修復證據，不做同儕排名。"
-        )
+        JourneyStep("打開 App", "怕一打開就是考試", "首頁先問今天狀態，並給出一個小任務", "狀態低時先進復原任務"),
+        JourneyStep("開始短任務", "擔心又答錯", "一題一概念，錯了也給下一步提示", "錯 2 次後生成接力摘要"),
+        JourneyStep("卡關求助", "不知道怎麼說自己不會", "提供可選原因，幫學生整理成求助訊息", "只把必要脈絡交給志工"),
+        JourneyStep("老師查看", "老師時間有限", "用待辦與優先序呈現誰需要先處理", "高風險斷點優先"),
+        JourneyStep("回到學習", "怕再次失敗", "用錯題修復和小成就把信心接回來", "週報只呈現支持證據")
     )
 
     val interventionSteps = listOf(
-        InterventionStep(
-            "心情低落",
-            "自動縮短任務長度，預設 3 分鐘復原任務。",
-            "今天只做一小步也算完成。",
-            "避免學生一進入平台就面對完整測驗。"
-        ),
-        InterventionStep(
-            "連續答錯",
-            "停止加題，改成 AI 拆解規則與同題重試。",
-            "不是你不會，是這個規則還沒有被拆小。",
-            "將錯誤從能力評價轉成可修復概念。"
-        ),
-        InterventionStep(
-            "需要真人",
-            "產生斷點摘要、證據、AI 已做處理與志工建議。",
-            "我已經幫你整理好，老師會知道你卡在哪。",
-            "讓志工把時間用在陪伴，而不是重問脈絡。"
-        ),
-        InterventionStep(
-            "完成修復",
-            "將復原任務納入進度與週報，建立可見成就。",
-            "你完成的是修復，不是補考。",
-            "讓學生看見自己有往前，不被排行榜壓垮。"
-        )
+        InterventionStep("心情低落", "改成 3 分鐘復原任務", "今天只完成一小步就好。", "學生仍願意回到任務"),
+        InterventionStep("連續錯題", "AI 拆成一個規則與一題練習", "不是你不會，是這個規則需要被拆小。", "錯題變成可修復紀錄"),
+        InterventionStep("主動求助", "把學生文字轉成志工摘要", "我卡在主詞，不知道為什麼要用 is。", "志工不需要重讀全部歷程"),
+        InterventionStep("老師介入", "顯示下一步而非總分排名", "下一步只要確認 He is。", "避免公開比較造成壓力")
     )
 
     val designPrinciples = listOf(
-        DesignPrinciple(
-            "低壓先行",
-            "所有學習任務都先被時間、心情與斷點重新排序。",
-            "心情檢測、3-5 分鐘任務、復原模式。"
-        ),
-        DesignPrinciple(
-            "AI 不取代真人",
-            "AI 處理即時拆解，真人處理高價值陪伴和情緒接住。",
-            "斷點中心、志工接力摘要、陪伴腳本。"
-        ),
-        DesignPrinciple(
-            "進步不靠排名",
-            "用修復紀錄、完成微任務和週報呈現成長。",
-            "學習地圖、錯題修復紀錄、本週週報。"
-        ),
-        DesignPrinciple(
-            "偏鄉限制內建",
-            "網路不穩、時間零碎、師資有限都被視為設計條件。",
-            "離線任務包、短任務、老師端優先序。"
-        )
+        DesignPrinciple("主行動優先", "首頁第一眼要看到今天先做什麼。", "主按鈕導向心情檢測或短任務。"),
+        DesignPrinciple("AI 不取代真人", "AI 處理可拆小的錯題，真人處理需要陪伴的斷點。", "handoff 摘要保留給老師/志工。"),
+        DesignPrinciple("不公開排名", "偏鄉學生先需要安全感，不是再次被分數定義。", "週報呈現完成、修復與接力證據。"),
+        DesignPrinciple("離線可用", "網路不穩時仍能保存學習紀錄。", "同步中心顯示本機待同步狀態。")
     )
 
     val helpRequestOptions = listOf(
-        HelpRequestOption(
-            "我看不懂題目",
-            "我不是不想做，是題目一長就不知道從哪裡開始。",
-            "先改派拆句提示，並把卡住的題型記到錯題修復紀錄。",
-            "AI 先處理"
-        ),
-        HelpRequestOption(
-            "我一直答錯",
-            "我已經試了幾次，但越做越沒信心。",
-            "停止加題，生成斷點摘要，志工只帶同一概念兩題。",
-            "志工接力"
-        ),
-        HelpRequestOption(
-            "我今天很累",
-            "我想學，但今天狀態真的不好。",
-            "切換成 3 分鐘復原任務，完成後仍記入進度。",
-            "復原模式"
-        ),
-        HelpRequestOption(
-            "我沒有穩定網路",
-            "我可能等等就沒網路，想先下載可以做的內容。",
-            "推薦離線任務包，保留本週進度與待同步紀錄。",
-            "離線任務"
-        )
+        HelpRequestOption("我看不懂題目", "我不知道這題在問什麼。", "平台先抓主詞和關鍵字，再生成接力摘要。", "AI 陪伴"),
+        HelpRequestOption("我一直選錯", "我知道答案好像不對，但不知道差在哪裡。", "平台整理錯誤規則，交給志工追蹤。", "志工接力"),
+        HelpRequestOption("我現在不想考", "我想先做簡單一點的任務。", "切換成 3 分鐘復原任務。", "復原任務"),
+        HelpRequestOption("我想問老師", "我需要老師告訴我下一步。", "整理成老師可讀的一句話。", "老師接力")
     )
 
     val learningContracts = listOf(
-        LearningContract(
-            "今天只修一個斷點",
-            "我只需要完成 1 個 3-5 分鐘任務。",
-            "平台不啟用排行榜，不用完整測驗追進度。",
-            "志工只看斷點摘要，不重新檢討學生。"
-        ),
-        LearningContract(
-            "先回到可完成感",
-            "如果我很累，可以選復原任務。",
-            "平台會把復原任務也算進學習紀錄。",
-            "老師看到的是修復證據，不是偷懶紀錄。"
-        ),
-        LearningContract(
-            "需要人時再接力",
-            "我可以主動求助，不必等到完全放棄。",
-            "平台會先分流 AI 或真人，避免學生一直重講狀況。",
-            "志工接力時只帶同一概念，不追加作業。"
-        )
+        LearningContract("今天只做一小步", "我願意先做 3-5 分鐘。", "平台不會公開排名，只提供下一步。", "老師/志工只看需要支持的地方。"),
+        LearningContract("錯題可以被修復", "我可以答錯，但要知道下一步。", "平台會把錯題拆成小規則。", "真人接力會看修復線索，不責備。"),
+        LearningContract("可以主動求助", "我可以說自己卡住。", "平台會幫我整理求助訊息。", "志工會用摘要回覆，而不是重新考我。")
     )
 
     val reflectionPrompts = listOf(
-        ReflectionPrompt(
-            "我比剛開始更懂一點",
-            "我可以說出 He 要搭配 is。",
-            "系統會把這次記為句型斷點修復。",
-            3
-        ),
-        ReflectionPrompt(
-            "我還是有點卡",
-            "我需要再看一次規則，不想馬上加題。",
-            "系統會保留低壓任務，並把斷點放進明天優先序。",
-            1
-        ),
-        ReflectionPrompt(
-            "我今天先到這裡",
-            "我完成一小步，但現在不想繼續。",
-            "系統會保存進度，不要求你連續做完整章節。",
-            0
-        )
+        ReflectionPrompt("我完成了一小步", "我今天至少完成一題。", "已把這次完成放進學習地圖。", 3),
+        ReflectionPrompt("我知道自己卡在哪裡", "我卡在 He 要不要用 is。", "這會變成下一次修復任務。", 1),
+        ReflectionPrompt("我需要人幫忙", "我想請志工看一下。", "平台會把摘要交給志工。", 0)
     )
 
     val teacherActions = listOf(
-        TeacherAction(
-            "確認林家豪 be 動詞斷點",
-            "Emily 志工",
-            "今日待處理",
-            "今天 21:00 前",
-            "He am / He are 連續答錯 3 次，且主動選擇「我一直答錯」。",
-            "用陪伴腳本開場，只帶 He is 與 They are 各 2 題。"
-        ),
-        TeacherAction(
-            "調整陳以晴閱讀任務",
-            "英文老師",
-            "本週追蹤",
-            "週五前",
-            "閱讀題停留過久，返回首頁次數偏高。",
-            "把閱讀題改成圈主詞、圈動詞、再看選項。"
-        ),
-        TeacherAction(
-            "確認離線任務包是否可用",
-            "小組成員",
-            "待驗證",
-            "下次訪談前",
-            "學生家庭網路不穩，碎片時間學習常中斷。",
-            "用 3 分鐘任務包做一次可用性測試。"
-        )
+        TeacherAction("追蹤小安 be 動詞", "Emily 志工", "待處理", "今晚 21:00", "He am / He are 連續錯 3 次。", "陪他完成 He is / They are 對照 2 題。"),
+        TeacherAction("協助阿柔拆長句", "英文老師", "本週追蹤", "明天", "閱讀題停留時間偏長。", "示範找主詞和動詞。"),
+        TeacherAction("確認離線包使用", "導師", "已安排", "本週五", "家中網路不穩。", "先下載 3 分鐘任務包。")
     )
 
     val syncRecords = listOf(
-        SyncRecord("今日微任務", "已同步", "完成 1 題 be 動詞修復，已寫入本週週報。"),
-        SyncRecord("離線任務包", "可下載", "3 分鐘 be 動詞修復包可離線使用。"),
-        SyncRecord("志工接力摘要", "待回覆", "已建立摘要，等待 Emily 志工確認。")
+        SyncRecord("短任務完成紀錄", "已保存", "本機已記錄 1 次 be 動詞練習。"),
+        SyncRecord("離線任務包", "待同步", "學生下載任務包後尚未補傳。"),
+        SyncRecord("志工接力摘要", "已排隊", "等待雲端後端正式設定。")
     )
 
     val localAccounts = listOf(
-        LocalAccount("林家豪", "學生", "YILAN-CHENGZHI-8A", "本機展示帳號"),
-        LocalAccount("Emily", "雲端志工", "MENTOR-GROUP-A", "本機展示帳號"),
-        LocalAccount("王老師", "老師", "CLASS-ENGLISH-02", "本機展示帳號")
+        LocalAccount("小安", AuthContract.ROLE_STUDENT, "YILAN-CHENGZHI-8A", "本機展示帳號"),
+        LocalAccount("Emily", AuthContract.ROLE_VOLUNTEER, "MENTOR-GROUP-A", "本機展示帳號"),
+        LocalAccount("林老師", AuthContract.ROLE_TEACHER, "CLASS-ENGLISH-02", "本機展示帳號")
     )
 
     val aiScenarios = listOf(
-        AiScenario(
-            "be 動詞錯題拆解",
-            "學生連續把 He ___ a student 選成 am / are。",
-            "不是整章不會，而是主詞與 be 動詞搭配不穩。",
-            "先看 He 是一個人，所以選 is。今天只練 He is，不加新規則。",
-            "林家豪在 be 動詞搭配連續錯 3 次，AI 已改派單概念修復，建議志工只帶 He is / They are 各 2 題。"
-        ),
-        AiScenario(
-            "長句閱讀退出",
-            "學生看到 10 字以上句子停留 18 秒後返回首頁。",
-            "可能不是單字量完全不足，而是長句切分壓力太高。",
-            "先圈出主詞，再找動詞，最後才看選項，不需要翻完整句。",
-            "學生遇到長句閱讀有退出訊號，建議老師下次用圈主詞/動詞策略，不直接要求翻譯。"
-        ),
-        AiScenario(
-            "情緒低落求助",
-            "學生選擇「我今天很累」。",
-            "目前最重要的是保住回來學習的意願，不是提高題量。",
-            "今天只做一小步也算完成。你可以先做 3 分鐘復原任務。",
-            "學生主動表示疲憊，平台已降為 3 分鐘復原任務，暫不建議追加作業。"
-        )
+        AiScenario("be 動詞修復", "學生回答 He am a student.", "卡在主詞與 be 動詞搭配。", "先記：He/She/It 後面通常用 is。我們只重做一題。", "小安卡在 be 動詞，建議志工用 He is / They are 對照。"),
+        AiScenario("長句閱讀降壓", "學生看到 Tom plays basketball after school 就停住。", "不是單字全不會，而是不知道從哪裡開始。", "先找誰做什麼：Tom plays basketball。後面的 after school 是時間。", "學生需要先練找主詞和動詞。"),
+        AiScenario("復原任務", "學生說現在不想考。", "情緒壓力高，應降低任務難度。", "今天不用完成測驗，只做一題你能掌握的題目。", "建議老師先肯定回到任務，再安排短題。")
     )
 }

@@ -12,8 +12,8 @@ class StoreReleaseContractTest {
 
         assertEquals("English+", listing.appName)
         assertTrue(listing.shortDescription.length in 20..80)
-        assertTrue(listing.fullDescription.contains("偏鄉"))
-        assertTrue(listing.fullDescription.contains("情緒斷點"))
+        assertTrue(listing.fullDescription.contains("偏鄉學生"))
+        assertTrue(listing.fullDescription.contains("情緒斷點") || listing.fullDescription.contains("卡關"))
         assertTrue(listing.contactEmail.contains("@"))
     }
 

@@ -1,4 +1,4 @@
-package tw.edu.citizenaction.soracompanion
+﻿package tw.edu.citizenaction.soracompanion
 
 import android.app.Activity
 import android.content.Context
@@ -77,12 +77,12 @@ class MainActivity : Activity() {
     private var actionDoneCount = 0
     private var managedStudentCount = 5
     private var offlinePendingCount = 1
-    private var selectedAccountName = "林家豪"
+    private var selectedAccountName = "小安"
     private var mentorReplyCount = 0
     private var learningEventCount = 0
     private var repairedMistakeCount = 0
     private var customTaskCount = 0
-    private var lastAnswerMessage = "還沒有開始今日任務。"
+    private var lastAnswerMessage = "還沒有作答，先從一題短任務開始。"
 
     private val student = PrototypeRepository.student
     private val modules = PrototypeRepository.modules

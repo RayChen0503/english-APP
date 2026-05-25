@@ -30,8 +30,8 @@ object StoreReleaseContract {
     fun playStoreListing(): PlayStoreListing {
         return PlayStoreListing(
             appName = "English+",
-            shortDescription = "偏鄉學生英語學習與情緒斷點接力支持平台原型",
-            fullDescription = "English+ 是為偏鄉學生設計的低壓英語學習原型，聚焦短任務、情緒斷點、AI 支援、老師與志工接力，以及可回報的學習證據。",
+            shortDescription = "給偏鄉學生的低壓英文學習與老師接力平台。",
+            fullDescription = "English+ 協助偏鄉學生在英文卡關時先被接住，再回到學習。平台提供心情檢測、3-5 分鐘短任務、錯題修復、AI 低壓提示、老師/志工接力、離線保存與學習報告，目標不是排名，而是讓學生願意繼續完成下一小步。",
             contactEmail = "english-plus@example.edu"
         )
     }

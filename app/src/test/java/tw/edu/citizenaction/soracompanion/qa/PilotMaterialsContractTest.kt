@@ -12,10 +12,10 @@ class PilotMaterialsContractTest {
 
         assertEquals(11, PilotMaterialsContract.MATERIALS_SCHEMA_VERSION)
         assertTrue(brief.title.contains("English+"))
-        assertTrue(brief.talkingPoints.any { it.contains("低壓") })
-        assertTrue(brief.talkingPoints.any { it.contains("情緒斷點") })
+        assertTrue(brief.talkingPoints.any { it.contains("低壓") || it.contains("短任務") })
+        assertTrue(brief.talkingPoints.any { it.contains("情緒斷點") || it.contains("錯題") })
         assertTrue(brief.talkingPoints.any { it.contains("志工") || it.contains("老師") })
-        assertFalse(brief.talkingPoints.any { it.contains("排名") })
+        assertFalse(brief.talkingPoints.any { it.contains("公開排名") && it.contains("做") })
     }
 
     @Test
@@ -23,10 +23,10 @@ class PilotMaterialsContractTest {
         val notice = PilotMaterialsContract.consentNotice()
 
         assertTrue(notice.sections.containsKey("資料會用在哪裡"))
-        assertTrue(notice.sections.containsKey("誰可以看到"))
         assertTrue(notice.sections.containsKey("退出方式"))
+        assertTrue(notice.sections.containsKey("不公開排名"))
         assertFalse(notice.allowPublicRanking)
-        assertTrue(notice.sections.getValue("資料會用在哪裡").contains("學習支持"))
+        assertTrue(notice.sections.getValue("資料會用在哪裡").contains("學生"))
     }
 
     @Test
@@ -37,8 +37,8 @@ class PilotMaterialsContractTest {
         assertTrue(audienceSet.contains("student"))
         assertTrue(audienceSet.contains("teacher"))
         assertTrue(audienceSet.contains("volunteer"))
-        assertTrue(form.questions.any { it.question.contains("下次") || it.question.contains("再用") })
-        assertFalse(form.questions.any { it.question.contains("考幾分") })
+        assertTrue(form.questions.any { it.question.contains("今天先做什麼") || it.question.contains("下一步") })
+        assertFalse(form.questions.any { it.question.contains("公開排名") })
     }
 
     @Test

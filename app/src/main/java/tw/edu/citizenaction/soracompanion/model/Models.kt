@@ -12,9 +12,9 @@ enum class Mood(
     val confidenceDelta: Int,
     val planName: String
 ) {
-    Good("狀態穩定", "可以做短任務加一題挑戰題。", "#0F766E", 8, 3, "一般任務"),
-    Okay("普通但可嘗試", "先做 5 分鐘，答對後再加題。", "#246BFD", 5, 1, "低壓任務"),
-    Low("有點累", "只做一題修復任務，先拿回可完成感。", "#B45309", 3, 0, "修復任務")
+    Good("狀態穩定", "可以做一題完整練習，也能多挑戰一點。", "#0F766E", 8, 3, "小挑戰任務"),
+    Okay("普通，先暖身", "先做 5 分鐘短任務，完成一小步就好。", "#246BFD", 5, 1, "低壓短任務"),
+    Low("有點卡住", "先做一個復原任務，不急著考自己。", "#B45309", 3, 0, "復原任務")
 }
 
 data class StudentProfile(
@@ -233,7 +233,7 @@ data class AppState(
     val actionDoneCount: Int = 0,
     val managedStudentCount: Int = 5,
     val offlinePendingCount: Int = 1,
-    val selectedAccountName: String = "林家豪",
+    val selectedAccountName: String = "小安",
     val mentorReplyCount: Int = 0,
     val learningEventCount: Int = 0,
     val repairedMistakeCount: Int = 0,
