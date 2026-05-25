@@ -83,6 +83,7 @@ class MainActivity : Activity() {
     private var repairedMistakeCount = 0
     private var customTaskCount = 0
     private var lastAnswerMessage = "還沒有作答，先從一題短任務開始。"
+    private var lastSelectedAnswer = ""
 
     private val student = PrototypeRepository.student
     private val modules = PrototypeRepository.modules
@@ -544,6 +545,7 @@ class MainActivity : Activity() {
             learningEventCount += 1
             if (wrongAttempts > 0) repairedMistakeCount += 1
             wrongAttempts = 0
+            lastSelectedAnswer = option
             lastAnswerMessage = "答對了：${q.explanation}"
             currentQuestionIndex = (currentQuestionIndex + 1) % questions.size
             addOfflineSyncItem("答題完成：${q.concept}", "學習事件", q.explanation)
@@ -554,6 +556,7 @@ class MainActivity : Activity() {
             wrongAttempts += 1
             confidence = (confidence - 1).coerceAtLeast(0)
             learningEventCount += 1
+            lastSelectedAnswer = option
             lastAnswerMessage = "你選了 $option。${q.explanation}"
             addOfflineSyncItem("答題卡住：${q.concept}", "學習事件", "學生選擇 $option，需要保留修復提示。")
             persistState()
@@ -570,7 +573,7 @@ class MainActivity : Activity() {
 
     private fun renderSuccess(q: Question) {
         screen = Screen.Lesson
-        shell("完成一個微任務", "把成功經驗存回學習地圖")
+        shell("答對了", "先確認結果，再決定下一步")
         root.addView(successSummaryCard(q))
         root.addView(card("下一步", "系統會把這次成功記錄為「句型修復」進度，不需要一次補完整章。", ColorToken.PrimarySoft))
         root.addView(ui.primaryButton("做一個 20 秒反思") { renderReflection() })
@@ -612,7 +615,8 @@ class MainActivity : Activity() {
     private fun renderAiCoach() {
         screen = Screen.AiCoach
         val q = questions[currentQuestionIndex]
-        shell("AI 即時陪伴", "錯題先變小，再重新嘗試")
+        shell("還沒答對", "先看清楚答案差在哪裡，再重新嘗試")
+        root.addView(answerResultCard(false, q, lastSelectedAnswer))
         root.addView(supportStepCard("01", "我看見你卡在這裡", q.prompt, ColorToken.WarningSoft, ColorToken.Warning))
         root.addView(supportStepCard("02", "先把概念拆小", "${q.explanation}\n現在只要先記住這一個規則，不需要一次背完 am / is / are。", ColorToken.VioletSoft, ColorToken.Primary))
         root.addView(supportStepCard("03", "你可以選下一步", "回到同一題再試一次；如果仍然不舒服，English+ 會幫你把狀況整理給志工。", ColorToken.PrimarySoft, ColorToken.Success))
@@ -2015,17 +2019,39 @@ class MainActivity : Activity() {
 
     private fun successSummaryCard(question: Question): View {
         val box = ui.sectionBand(ColorToken.SuccessSoft)
-        box.addView(ui.statusPill("完成", ColorToken.Success))
-        box.addView(ui.label("這一小步已經算數", 22, ColorToken.Ink, true).apply {
+        box.addView(ui.statusPill("答對", ColorToken.Success))
+        box.addView(ui.label("答對了，這一題完成", 24, ColorToken.Ink, true).apply {
             setPadding(0, ui.dp(12), 0, ui.dp(4))
         })
-        box.addView(ui.body("你完成第 $completedTasks 個微任務。${question.explanation}", "#334155"))
+        box.addView(ui.body("你的答案：${question.answer}\n${question.explanation}", "#334155"))
         box.addView(metricRow(
             Metric("任務", "$completedTasks", ColorToken.Primary),
             Metric("信心", "$confidence%", ColorToken.Success),
-            Metric("回饋", "已存", ColorToken.Accent)
+            Metric("結果", "正確", ColorToken.Success)
         ))
         box.addView(ui.body("下一步已開啟：可以進下一題，也可以先做 20 秒反思把完成感留下來。", ColorToken.Primary))
+        return ui.margins(box, 0, 8, 0, 16)
+    }
+
+    private fun answerResultCard(isCorrect: Boolean, question: Question, selectedAnswer: String): View {
+        val fill = if (isCorrect) ColorToken.SuccessSoft else ColorToken.WarningSoft
+        val color = if (isCorrect) ColorToken.Success else ColorToken.Warning
+        val title = if (isCorrect) "答對了" else "還沒答對"
+        val subtitle = if (isCorrect) "這一題已經完成。" else "你選的答案和正確答案不同。"
+        val box = ui.sectionBand(fill)
+        box.addView(ui.statusPill(if (isCorrect) "正確" else "需要修復", color))
+        box.addView(ui.label(title, 26, ColorToken.Ink, true).apply {
+            setPadding(0, ui.dp(12), 0, ui.dp(4))
+        })
+        box.addView(ui.body(subtitle, "#334155"))
+        box.addView(metricRow(
+            Metric("你的答案", selectedAnswer.ifBlank { "未記錄" }, color),
+            Metric("正確答案", question.answer, ColorToken.Success),
+            Metric("狀態", if (isCorrect) "完成" else "再試一次", color)
+        ))
+        box.addView(ui.body("為什麼：${question.explanation}", "#334155").apply {
+            setPadding(0, ui.dp(8), 0, 0)
+        })
         return ui.margins(box, 0, 8, 0, 16)
     }
 
