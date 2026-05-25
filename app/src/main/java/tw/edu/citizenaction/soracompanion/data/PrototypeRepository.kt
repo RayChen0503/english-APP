@@ -79,35 +79,219 @@ object PrototypeRepository {
             Question("翻譯/句子重組：『這本書太難了，我看不懂。』最自然的英文是？", listOf("This book is too difficult for me to understand.", "This book too difficult I cannot understand it.", "I am too difficult to understand this book.", "This book is difficult too understand me."), "This book is too difficult for me to understand.", "too + 形容詞 + for 人 + to V 可表達太難而無法理解。", "會考翻譯：too...to", "翻譯/句子重組", "看到『太...而不能』，想 too difficult for me to understand。"),
             Question("翻譯/句子重組：『如果明天下雨，我們就待在家。』最自然的英文是？", listOf("If it rains tomorrow, we will stay home.", "If it will rain tomorrow, we stay home.", "Tomorrow rains if we will home stay.", "If tomorrow rain, we are stay home."), "If it rains tomorrow, we will stay home.", "if 條件句談未來，if 子句用現在式 rains，主句用 will。", "會考翻譯：條件句", "翻譯/句子重組", "if 子句不要用 will rain。"),
             Question("翻譯/句子重組：『我想知道公車什麼時候會到。』最自然的英文是？", listOf("I want to know when the bus will arrive.", "I want know when will the bus arrive.", "I want to know when will arrive the bus.", "I want knowing the bus when arrive."), "I want to know when the bus will arrive.", "間接問句用直述句語序：when the bus will arrive。", "會考翻譯：間接問句", "翻譯/句子重組", "間接問句不是 when will the bus arrive。")
+        ) + buildExpandedCapStyleQuestions()
+    }
+
+    private fun buildExpandedCapStyleQuestions(): List<Question> {
+        val questions = mutableListOf<Question>()
+
+        val choiceSubjects = listOf(
+            "My sister" to "is",
+            "The students" to "are",
+            "A good breakfast" to "is",
+            "Those books" to "are",
+            "Mr. Chen" to "is",
+            "The cats" to "are",
+            "English" to "is",
+            "My parents" to "are",
+            "This question" to "is",
+            "The boys" to "are",
+            "Our classroom" to "is",
+            "Two tickets" to "are",
+            "The movie" to "is",
+            "Some apples" to "are",
+            "The bus stop" to "is",
+            "My shoes" to "are",
+            "Her idea" to "is"
         )
+        choiceSubjects.forEachIndexed { index, (subject, answer) ->
+            questions.add(
+                Question(
+                    "$subject ___ important in this sentence.",
+                    listOf("am", "is", "are", "be"),
+                    answer,
+                    "$subject 的單複數決定 be 動詞，這題答案是 $answer。",
+                    "be 動詞：主詞一致 ${index + 1}",
+                    "選擇題",
+                    "先判斷主詞是一個人/物，還是很多人/物。"
+                )
+            )
+        }
+
+        val fillItems = listOf(
+            Triple("Tom has lived here ___ 2020.", "since", "since 接時間起點。"),
+            Triple("The cake was made ___ my aunt.", "by", "被動語態中 by 表示動作者。"),
+            Triple("I enjoy ___ English songs after class.", "listening to", "enjoy 後面接 V-ing。"),
+            Triple("The movie was so boring that I almost fell ___.", "asleep", "fall asleep 表示睡著。"),
+            Triple("Please turn ___ the lights before you leave.", "off", "turn off 表示關掉。"),
+            Triple("Neither Leo nor his brothers ___ at home now.", "are", "nor 後面的主詞 brothers 決定動詞。"),
+            Triple("The woman ___ is talking to our teacher is my mom.", "who", "先行詞是人，用 who。"),
+            Triple("I was doing homework when the phone ___.", "rang", "when 引導過去事件，主句用過去進行。"),
+            Triple("The box is too heavy for me ___ carry.", "to", "too...to 表示太...而無法。"),
+            Triple("We should save water ___ it is important.", "because", "後句說原因，用 because。"),
+            Triple("This restaurant is famous ___ its beef noodles.", "for", "be famous for 表示以...聞名。"),
+            Triple("I have never ___ such an exciting game.", "seen", "完成式 have never 後接過去分詞。"),
+            Triple("The train had left ___ we arrived.", "before", "先離開，再抵達，用 before。"),
+            Triple("It is kind ___ you to help the new student.", "of", "It is kind of you 是固定用法。"),
+            Triple("How long does it take ___ to school?", "to get", "It takes time to V。"),
+            Triple("The teacher told us not ___ loudly in the library.", "to talk", "tell 人 not to V。"),
+            Triple("The more you practice, the ___ you will become.", "better", "the 比較級, the 比較級。"),
+            Triple("I don't know ___ he will come or not.", "whether", "whether...or not 表示是否。"),
+            Triple("The man speaks slowly so that everyone can ___ him.", "understand", "can 後面接原形動詞。"),
+            Triple("The room needs ___ before the guests arrive.", "cleaning", "need V-ing 可表示需要被做。"),
+            Triple("If you heat ice, it ___ water.", "becomes", "零條件句表示自然結果，用現在式。")
+        )
+        fillItems.forEachIndexed { index, item ->
+            questions.add(
+                Question(
+                    item.first,
+                    listOf(item.second, "will " + item.second, item.second + "ed", "to " + item.second).distinct().take(4),
+                    item.second,
+                    item.third,
+                    "會考填空：文法與語意 ${index + 1}",
+                    "填空題",
+                    "先判斷空格需要介系詞、動詞型態、連接詞，還是片語。"
+                )
+            )
+        }
+
+        val clozeContexts = listOf(
+            "A school started a book corner in every classroom. Students can take a book during break time and return it after they finish reading. This plan helps students read more ___ they do not have much free time.",
+            "Nina lost her student card on the way home. She wrote a message online and asked if anyone had seen it. The next morning, a classmate returned it to her. Nina felt ___ and thanked him.",
+            "Many people bring their own bags when they shop. This small habit can reduce waste and make the city cleaner. It is an easy way to ___ the earth.",
+            "Jason wanted to buy a new phone, but he decided to save money first. He wrote down what he spent every day. After two months, he knew where his money ___.",
+            "The soccer team did not win the first game. However, the players kept practicing and learned from their mistakes. In the final game, they played much ___.",
+            "A museum guide told visitors not to touch the old paintings. The rule is important because oil and dirt from hands may ___ the paintings.",
+            "Lily was nervous before her speech. Her teacher told her to breathe slowly and look at one friendly face. The advice helped her feel more ___."
+        )
+        val clozeAnswers = listOf(
+            listOf("even if", "before", "until", "unless"),
+            listOf("thankful", "hungry", "careless", "late"),
+            listOf("protect", "borrow", "forget", "invite"),
+            listOf("went", "slept", "grew", "opened"),
+            listOf("better", "earlier", "louder", "heavier"),
+            listOf("damage", "follow", "enter", "answer"),
+            listOf("confident", "dangerous", "expensive", "crowded")
+        )
+        repeat(3) { round ->
+            clozeContexts.forEachIndexed { index, prompt ->
+                val options = clozeAnswers[index]
+                questions.add(
+                    Question(
+                        "克漏字：$prompt",
+                        options,
+                        options.first(),
+                        "依照上下文，${options.first()} 最符合文章語意。",
+                        "會考克漏字：上下文線索 ${round + 1}-${index + 1}",
+                        "克漏字",
+                        "先看空格前後句，判斷是原因、轉折、感受、動作或結果。"
+                    )
+                )
+            }
+        }
+
+        val readingPrompts = listOf(
+            Triple("A poster says: Join the river clean-up this Saturday. Meet at the park gate at 8:30 a.m. Gloves and bags will be provided.", "What should people do first?", "Go to the park gate in the morning."),
+            Triple("A message says: Dad, I left my science notebook on the kitchen table. Could you bring it to school before lunch?", "What does the writer need?", "A notebook from home."),
+            Triple("A notice says: The school concert will move from the playground to the gym because of rain.", "Why was the place changed?", "Because the weather is rainy."),
+            Triple("A short article says: Some students study better with quiet music, but songs with words may make reading harder.", "What is the main idea?", "Music can affect studying in different ways."),
+            Triple("A timetable says: Bus 12 leaves every 20 minutes from 7:00 to 9:00 in the morning.", "If a bus leaves at 7:20, when is the next one?", "At 7:40."),
+            Triple("A shop note says: Buy two sandwiches and get one drink for free before 11 a.m.", "When can customers get a free drink?", "Before 11 a.m."),
+            Triple("An email says: Please send your group report by Friday night. Late reports will not be accepted.", "What must students do?", "Send the report by Friday night.")
+        )
+        repeat(3) { round ->
+            readingPrompts.forEachIndexed { index, item ->
+                questions.add(
+                    Question(
+                        "閱讀理解：${item.first}\n${item.second}",
+                        listOf(item.third, "Wait until next week.", "Ask for a new phone.", "Close the school library."),
+                        item.third,
+                        "題目線索在文字中可以直接找到或推論出來。",
+                        "會考閱讀：生活文本 ${round + 1}-${index + 1}",
+                        "閱讀理解",
+                        "先看問題，再回到公告、訊息或短文找同義線索。"
+                    )
+                )
+            }
+        }
+
+        val translationItems = listOf(
+            "我昨天晚上九點正在讀英文。" to "I was reading English at nine last night.",
+            "這個問題比我想的更難。" to "This question is harder than I thought.",
+            "你能告訴我車站在哪裡嗎？" to "Can you tell me where the station is?",
+            "他太累了，所以沒有完成作業。" to "He was too tired to finish his homework.",
+            "這是我看過最有趣的故事。" to "This is the most interesting story I have ever read.",
+            "如果你需要幫忙，請告訴我。" to "If you need help, please tell me.",
+            "我們花了兩小時完成海報。" to "It took us two hours to finish the poster.",
+            "她不但會唱歌，也會彈吉他。" to "She can not only sing but also play the guitar.",
+            "我不知道明天是否會下雨。" to "I don't know whether it will rain tomorrow.",
+            "這張照片讓我想起我的家鄉。" to "This picture reminds me of my hometown.",
+            "為了準時到校，他今天很早起床。" to "He got up early today to get to school on time.",
+            "請在離開教室前關燈。" to "Please turn off the lights before leaving the classroom.",
+            "這部電影值得再看一次。" to "This movie is worth watching again.",
+            "老師要我們分組討論這個故事。" to "The teacher asked us to discuss the story in groups.",
+            "即使天氣很熱，他仍然去練球。" to "Even though it was hot, he still went to practice baseball.",
+            "我正在找一個可以安靜讀書的地方。" to "I am looking for a place where I can study quietly."
+        )
+        translationItems.forEachIndexed { index, item ->
+            questions.add(
+                Question(
+                    "翻譯/句子重組：『${item.first}』最自然的英文是？",
+                    listOf(item.second, item.second.replace("I ", "Me "), item.second.replace(" is ", " are "), item.second.replace(" to ", " for ")).distinct().take(4),
+                    item.second,
+                    "注意英文語序、時態與固定搭配。",
+                    "會考翻譯：語序與句型 ${index + 1}",
+                    "翻譯/句子重組",
+                    "先排主詞和動詞，再確認時間、連接詞與片語位置。"
+                )
+            )
+        }
+
+        return questions
     }
 
     private fun buildQuestionBankItems(sourceQuestions: List<Question>): List<QuestionBankItem> {
-        val levels = listOf("A1", "A1", "A1", "A1", "A1", "A1", "A1", "A1", "A2", "A2", "A2", "A2", "A2", "A2", "A2", "B1", "A2", "A2", "B1", "A2", "A2", "B1", "B1", "B1")
-        val units = listOf(
-            "be 動詞暖身", "be 動詞暖身", "be 動詞暖身", "be 動詞暖身", "be 動詞暖身", "短句閱讀", "口語回應", "頻率副詞",
-            "會考文法填空", "會考文法填空", "會考文法填空", "會考字彙填空",
-            "會考克漏字", "會考克漏字", "會考克漏字", "會考克漏字",
-            "會考閱讀理解", "會考閱讀理解", "會考閱讀理解", "會考閱讀理解",
-            "翻譯與句子重組", "翻譯與句子重組", "翻譯與句子重組", "翻譯與句子重組"
-        )
-        val skills = listOf(
-            "文法", "文法", "文法", "文法", "文法", "閱讀", "口說", "單字",
-            "文法", "文法", "文法", "單字",
-            "克漏字", "克漏字", "克漏字", "克漏字",
-            "閱讀", "閱讀", "閱讀", "閱讀",
-            "翻譯", "翻譯", "翻譯", "翻譯"
-        )
         return sourceQuestions.mapIndexed { index, question ->
+            val typeIndex = sourceQuestions.take(index + 1).count { it.type == question.type }
             QuestionBankItem(
                 id = "cap-style-${(index + 1).toString().padStart(3, '0')}",
-                level = levels[index],
-                unit = units[index],
-                skill = skills[index],
+                level = levelFor(question.type, typeIndex),
+                unit = unitFor(question.type),
+                skill = skillFor(question.type),
                 source = if (index < 8) "English+ seed" else "English+ CAP-style original",
                 question = question,
-                reviewState = if (index < 16) "approved" else "draft"
+                reviewState = if (index < 80) "approved" else "draft"
             )
+        }
+    }
+
+    private fun levelFor(type: String, typeIndex: Int): String {
+        return when (type) {
+            "選擇題" -> if (typeIndex <= 8) "A1" else "A2"
+            "填空題" -> if (typeIndex <= 8) "A2" else "B1"
+            "克漏字" -> if (typeIndex <= 10) "A2" else "B1"
+            "閱讀理解" -> if (typeIndex <= 10) "A2" else "B1"
+            else -> if (typeIndex <= 6) "A2" else "B1"
+        }
+    }
+
+    private fun unitFor(type: String): String {
+        return when (type) {
+            "填空題" -> "會考文法填空"
+            "克漏字" -> "會考克漏字"
+            "閱讀理解" -> "會考閱讀理解"
+            "翻譯/句子重組" -> "翻譯與句子重組"
+            else -> "入門文法與字彙"
+        }
+    }
+
+    private fun skillFor(type: String): String {
+        return when (type) {
+            "填空題" -> "文法"
+            "克漏字" -> "克漏字"
+            "閱讀理解" -> "閱讀"
+            "翻譯/句子重組" -> "翻譯"
+            else -> "基礎"
         }
     }
 

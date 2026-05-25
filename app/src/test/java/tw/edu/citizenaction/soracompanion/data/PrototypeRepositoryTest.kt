@@ -10,7 +10,7 @@ class PrototypeRepositoryTest {
     fun questionBankItemsHaveValidQuestionPayloads() {
         val items = PrototypeRepository.questionBankItems
 
-        assertTrue("question bank should contain enough demo items", items.size >= 20)
+        assertTrue("question bank should contain enough inner-pilot items", items.size >= 120)
         assertEquals("question bank ids should be unique", items.size, items.map { it.id }.distinct().size)
 
         items.forEach { item ->
@@ -39,6 +39,17 @@ class PrototypeRepositoryTest {
             "CAP-style originals should be marked in the source",
             items.any { it.source.contains("CAP-style original") }
         )
+    }
+
+    @Test
+    fun questionBankHasEnoughItemsPerQuestionTypeForPractice() {
+        val counts = PrototypeRepository.questionBankItems.groupingBy { it.question.type }.eachCount()
+
+        assertTrue("choice questions should have enough warm-up items", counts.getValue("選擇題") >= 20)
+        assertTrue("fill-in questions should have enough grammar practice", counts.getValue("填空題") >= 25)
+        assertTrue("cloze questions should have enough passage practice", counts.getValue("克漏字") >= 25)
+        assertTrue("reading comprehension should have enough article/message practice", counts.getValue("閱讀理解") >= 25)
+        assertTrue("translation/reordering should have enough sentence practice", counts.getValue("翻譯/句子重組") >= 20)
     }
 
     @Test
